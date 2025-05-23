@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="text-center mb-0">
+                    <i class="fas fa-users me-2 text-primary"></i>
+                    Create New Cell Team
+                </h3>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Team Name</label>
+                        <input type="text" class="form-control" id="name" name="name" required>
+                    </div>
+
+                    <!-- Leader Information -->
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="mb-0">Team Leader Information</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="leader_first_name" class="form-label">First Name</label>
+                                    <input type="text" class="form-control" id="leader_first_name" name="leader_first_name" required>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="leader_last_name" class="form-label">Last Name</label>
+                                    <input type="text" class="form-control" id="leader_last_name" name="leader_last_name" required>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="leader_email" class="form-label">Email</label>
+                                    <input type="email" class="form-control" id="leader_email" name="leader_email" required>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="leader_phone" class="form-label">Phone</label>
+                                    <input type="tel" class="form-control" id="leader_phone" name="leader_phone" required>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="meeting_day" class="form-label">Meeting Day</label>
+                            <select class="form-select" id="meeting_day" name="meeting_day" required>
+                                <option value="">Select Day</option>
+                                <option value="Monday">Monday</option>
+                                <option value="Tuesday">Tuesday</option>
+                                <option value="Wednesday">Wednesday</option>
+                                <option value="Thursday">Thursday</option>
+                                <option value="Friday">Friday</option>
+                                <option value="Saturday">Saturday</option>
+                                <option value="Sunday">Sunday</option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label for="meeting_time" class="form-label">Meeting Time</label>
+                            <input type="time" class="form-control" id="meeting_time" name="meeting_time" required>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="location" class="form-label">Meeting Location</label>
+                        <input type="text" class="form-control" id="location" name="location" required>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="description" class="form-label">Description</label>
+                        <textarea class="form-control" id="description" name="description" rows="3"></textarea>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label">Initial Team Members</label>
+                        <div class="input-group mb-3">
+                            <input type="text" class="form-control" id="memberSearch" placeholder="Search members..." onkeyup="filterMembers()">
+                            <button class="btn btn-outline-secondary" type="button" onclick="clearSearch()">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <div class="member-list border rounded p-3" style="max-height: 300px; overflow-y: auto;">
+                            {% for member in members %}
+                            <div class="form-check member-item mb-2">
+                                <input class="form-check-input" type="checkbox" name="team_members" value="{{ member.id }}" id="member{{ member.id }}">
+                                <label class="form-check-label" for="member{{ member.id }}">
+                                    {{ member.first_name }} {{ member.last_name }}
+                                    <small class="text-muted d-block">{{ member.email }}</small>
+                                </label>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="text-center">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="fas fa-plus me-2"></i>Create Cell Team
+                        </button>
+                        <a href="{{ url_for('cell_teams') }}" class="btn btn-secondary btn-lg ms-2">
+                            <i class="fas fa-times me-2"></i>Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function filterMembers() {
+    const searchText = document.getElementById('memberSearch').value.toLowerCase();
+    const memberItems = document.getElementsByClassName('member-item');
+    
+    Array.from(memberItems).forEach(item => {
+        const label = item.getElementsByClassName('form-check-label')[0];
+        const text = label.textContent.toLowerCase();
+        if (text.includes(searchText)) {
+            item.style.display = '';
+        } else {
+            item.style.display = 'none';
+        }
+    });
+}
+
+function clearSearch() {
+    document.getElementById('memberSearch').value = '';
+    Array.from(document.getElementsByClassName('member-item')).forEach(item => {
+        item.style.display = '';
+    });
+}
+</script>
+{% endblock %} 

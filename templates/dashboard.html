@@ -1,0 +1,221 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2><i class="fas fa-tachometer-alt me-2"></i>EPAPHRA Dashboard</h2>
+    </div>
+    <div class="col text-end">
+        <a href="{{ url_for('register') }}" class="btn btn-primary">
+            <i class="fas fa-user-plus me-2"></i>Add New Member
+        </a>
+    </div>
+</div>
+
+<!-- Search Bar -->
+<div class="row mb-4">
+    <div class="col-md-8 mx-auto">
+        <div class="card">
+            <div class="card-body">
+                <form method="GET" action="{{ url_for('dashboard') }}" class="d-flex align-items-center">
+                    <div class="input-group">
+                        <span class="input-group-text bg-white border-end-0">
+                            <i class="fas fa-search text-primary"></i>
+                        </span>
+                        <input type="text" name="search" class="form-control border-start-0" 
+                               placeholder="Search by name, email, phone, ministry..." 
+                               value="{{ search_query if search_query else '' }}">
+                        <button type="submit" class="btn btn-primary">Search</button>
+                        {% if search_query %}
+                            <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">Clear</a>
+                        {% endif %}
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if search_query %}
+<div class="row mb-4">
+    <div class="col">
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle me-2"></i>
+            Showing results for: <strong>{{ search_query }}</strong>
+            ({{ members|length }} {{ 'member' if members|length == 1 else 'members' }} found)
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Statistics Cards -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <i class="fas fa-users fa-2x mb-2 text-primary"></i>
+                <h5 class="card-title">Total Members</h5>
+                <p class="card-text display-6">{{ members|length }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <i class="fas fa-water fa-2x mb-2 text-info"></i>
+                <h5 class="card-title">Baptized Members</h5>
+                <p class="card-text display-6">{{ members|selectattr('baptism_status')|list|length }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <i class="fas fa-church fa-2x mb-2 text-success"></i>
+                <h5 class="card-title">Active Members</h5>
+                <p class="card-text display-6">{{ members|selectattr('membership_status', 'equalto', 'Active')|list|length }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <i class="fas fa-user-plus fa-2x mb-2 text-warning"></i>
+                <h5 class="card-title">New Members</h5>
+                <p class="card-text display-6">{{ members|selectattr('membership_status', 'equalto', 'New Member')|list|length }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Members Table -->
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Contact</th>
+                        <th>Ministry</th>
+                        <th>Status</th>
+                        <th>Details</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for member in members %}
+                    <tr>
+                        <td>
+                            <div class="fw-bold">{{ member.first_name }} {{ member.last_name }}</div>
+                            <small class="text-muted">Joined: {{ member.date_joined.strftime('%Y-%m-%d') }}</small>
+                        </td>
+                        <td>
+                            <div>{{ member.email }}</div>
+                            <small class="text-muted">{{ member.phone }}</small>
+                        </td>
+                        <td>
+                            <span class="badge bg-primary">{{ member.ministry }}</span>
+                        </td>
+                        <td>
+                            {% if member.membership_status == 'Active' %}
+                                <span class="badge bg-success">Active</span>
+                            {% elif member.membership_status == 'Inactive' %}
+                                <span class="badge bg-danger">Inactive</span>
+                            {% elif member.membership_status == 'New Member' %}
+                                <span class="badge bg-warning">New Member</span>
+                            {% else %}
+                                <span class="badge bg-secondary">{{ member.membership_status }}</span>
+                            {% endif %}
+                            {% if member.baptism_status %}
+                                <span class="badge bg-info">Baptized</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#memberModal{{ member.id }}">
+                                <i class="fas fa-info-circle"></i> View
+                            </button>
+                        </td>
+                    </tr>
+
+                    <!-- Member Details Modal -->
+                    <div class="modal fade" id="memberModal{{ member.id }}" tabindex="-1">
+                        <div class="modal-dialog modal-lg">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">
+                                        <i class="fas fa-user me-2"></i>{{ member.first_name }} {{ member.last_name }}
+                                    </h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <h6><i class="fas fa-info-circle me-2"></i>Personal Information</h6>
+                                            <p><strong>Date of Birth:</strong> {{ member.date_of_birth.strftime('%Y-%m-%d') if member.date_of_birth }}</p>
+                                            <p><strong>Gender:</strong> {{ member.gender }}</p>
+                                            <p><strong>Marital Status:</strong> {{ member.marital_status }}</p>
+                                            <p><strong>Occupation:</strong> {{ member.occupation }}</p>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <h6><i class="fas fa-church me-2"></i>Church Information</h6>
+                                            <p><strong>Ministry:</strong> {{ member.ministry }}</p>
+                                            <p><strong>Membership Status:</strong> {{ member.membership_status }}</p>
+                                            <p><strong>Baptism Status:</strong> {{ "Baptized" if member.baptism_status else "Not Baptized" }}</p>
+                                            <p><strong>Baptism Date:</strong> {{ member.baptism_date.strftime('%Y-%m-%d') if member.baptism_date }}</p>
+                                        </div>
+                                    </div>
+                                    <hr>
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <h6><i class="fas fa-address-card me-2"></i>Contact Information</h6>
+                                            <p><strong>Email:</strong> {{ member.email }}</p>
+                                            <p><strong>Phone:</strong> {{ member.phone }}</p>
+                                            <p><strong>Address:</strong> {{ member.address }}</p>
+                                            <p><strong>City:</strong> {{ member.city }}</p>
+                                            <p><strong>State:</strong> {{ member.state }}</p>
+                                            <p><strong>Postal Code:</strong> {{ member.postal_code }}</p>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <h6><i class="fas fa-phone me-2"></i>Emergency Contact</h6>
+                                            <p><strong>Name:</strong> {{ member.emergency_contact_name }}</p>
+                                            <p><strong>Phone:</strong> {{ member.emergency_contact_phone }}</p>
+                                        </div>
+                                    </div>
+                                    <hr>
+                                    <div class="row">
+                                        <div class="col-12">
+                                            <h6><i class="fas fa-star me-2"></i>Additional Information</h6>
+                                            <p><strong>Spiritual Gifts:</strong> {{ member.spiritual_gifts }}</p>
+                                            <p><strong>Leadership Roles:</strong> {{ member.leadership_roles }}</p>
+                                            <p><strong>Family Members:</strong> {{ member.family_members }}</p>
+                                            <p><strong>Skills & Talents:</strong> {{ member.skills_talents }}</p>
+                                            <p><strong>Previous Church:</strong> {{ member.previous_church }}</p>
+                                        </div>
+                                    </div>
+                                    {% if member.prayer_requests or member.notes %}
+                                    <hr>
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <h6><i class="fas fa-pray me-2"></i>Prayer Requests</h6>
+                                            <p>{{ member.prayer_requests }}</p>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <h6><i class="fas fa-sticky-note me-2"></i>Notes</h6>
+                                            <p>{{ member.notes }}</p>
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %} 

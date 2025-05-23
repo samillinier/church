@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2>
+            <i class="fas fa-users me-2"></i>{{ team.name }}
+            <small class="text-muted fs-6">Cell Team Details</small>
+        </h2>
+    </div>
+    <div class="col text-end">
+        <a href="{{ url_for('cell_teams') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left me-2"></i>Back to Cell Teams
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Team Information -->
+    <div class="col-md-4">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Team Information</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>Leader:</strong> 
+                    {% if team.leader %}
+                        {{ team.leader.first_name }} {{ team.leader.last_name }}
+                    {% else %}
+                        <span class="text-muted">No leader assigned</span>
+                    {% endif %}
+                </p>
+                <p><strong>Meeting Day:</strong> {{ team.meeting_day }}</p>
+                <p><strong>Meeting Time:</strong> {{ team.meeting_time }}</p>
+                <p><strong>Location:</strong> {{ team.location }}</p>
+                <p><strong>Description:</strong> {{ team.description or 'No description available' }}</p>
+                <p><strong>Created:</strong> {{ team.created_at.strftime('%Y-%m-%d') }}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Team Members -->
+    <div class="col-md-8">
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-user-friends me-2"></i>Team Members</h5>
+                <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addMemberModal">
+                    <i class="fas fa-plus me-2"></i>Add Member
+                </button>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Contact</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for member in team.members %}
+                            <tr>
+                                <td>{{ member.first_name }} {{ member.last_name }}</td>
+                                <td>
+                                    <div>{{ member.email }}</div>
+                                    <small class="text-muted">{{ member.phone }}</small>
+                                </td>
+                                <td>
+                                    <form action="{{ url_for('remove_team_member', team_id=team.id, member_id=member.id) }}" method="POST" class="d-inline">
+                                        <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to remove this member?')">
+                                            <i class="fas fa-user-minus"></i>
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Member Modal -->
+<div class="modal fade" id="addMemberModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add Members to {{ team.name }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="memberSearchModal" placeholder="Search members by name or email..." onkeyup="filterModalMembers()">
+                        <button class="btn btn-outline-secondary" type="button" onclick="clearModalSearch()">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="member-list" style="max-height: 400px; overflow-y: auto;">
+                    <form action="{{ url_for('add_team_member', team_id=team.id) }}" method="POST">
+                        {% for member in available_members %}
+                        <div class="member-item card mb-2">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h6 class="mb-1">{{ member.first_name }} {{ member.last_name }}</h6>
+                                        <small class="text-muted">{{ member.email }}</small>
+                                        {% if member.phone %}
+                                        <small class="text-muted d-block">{{ member.phone }}</small>
+                                        {% endif %}
+                                    </div>
+                                    <button type="submit" name="member_id" value="{{ member.id }}" class="btn btn-primary btn-sm">
+                                        <i class="fas fa-plus me-1"></i>Add
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function filterModalMembers() {
+    const searchText = document.getElementById('memberSearchModal').value.toLowerCase();
+    const memberItems = document.getElementsByClassName('member-item');
+    
+    Array.from(memberItems).forEach(item => {
+        const text = item.textContent.toLowerCase();
+        if (text.includes(searchText)) {
+            item.style.display = '';
+        } else {
+            item.style.display = 'none';
+        }
+    });
+}
+
+function clearModalSearch() {
+    document.getElementById('memberSearchModal').value = '';
+    Array.from(document.getElementsByClassName('member-item')).forEach(item => {
+        item.style.display = '';
+    });
+}
+</script>
+{% endblock %} 

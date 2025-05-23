@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="text-center py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <h1 class="display-4 mb-4">Welcome to EPAPHRA Member Database</h1>
+            <p class="lead mb-5">Manage your EPAPHRA community with ease</p>
+            
+            {% if not current_user.is_authenticated %}
+            <div class="mt-4">
+                <a href="{{ url_for('login') }}" class="btn btn-primary btn-lg mx-2">
+                    <i class="fas fa-sign-in-alt me-2"></i>Login to Dashboard
+                </a>
+            </div>
+            {% else %}
+            <div class="mt-4">
+                <div class="row justify-content-center g-4">
+                    <div class="col-md-4">
+                        <div class="feature-card">
+                            <div class="feature-icon">
+                                <i class="fas fa-tachometer-alt"></i>
+                            </div>
+                            <h3>Manage Members</h3>
+                            <p>View and manage all members</p>
+                            <a href="{{ url_for('dashboard') }}" class="feature-button">
+                                <i class="fas fa-arrow-right me-2"></i>Go to Dashboard
+                            </a>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="feature-card">
+                            <div class="feature-icon">
+                                <i class="fas fa-user-plus"></i>
+                            </div>
+                            <h3>Add Member</h3>
+                            <p>Register a new member</p>
+                            <a href="{{ url_for('register') }}" class="feature-button">
+                                <i class="fas fa-plus me-2"></i>Register New Member
+                            </a>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="feature-card">
+                            <div class="feature-icon">
+                                <i class="fas fa-users"></i>
+                            </div>
+                            <h3>Cell Teams</h3>
+                            <p>Manage Bible study groups</p>
+                            <a href="{{ url_for('cell_teams') }}" class="feature-button">
+                                <i class="fas fa-users me-2"></i>View Cell Teams
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+.feature-card {
+    background: #fff;
+    border-radius: 15px;
+    padding: 2rem;
+    text-align: center;
+    height: 100%;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s ease-in-out;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 320px;
+}
+
+.feature-card:hover {
+    transform: translateY(-5px);
+}
+
+.feature-icon {
+    width: 80px;
+    height: 80px;
+    background: #1e3c72;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1.5rem;
+}
+
+.feature-icon i {
+    font-size: 2rem;
+    color: white;
+}
+
+.feature-card h3 {
+    color: #1e3c72;
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+}
+
+.feature-card p {
+    color: #6c757d;
+    margin-bottom: 1.5rem;
+    flex-grow: 1;
+}
+
+.feature-button {
+    background: #1e3c72;
+    color: white;
+    padding: 0.75rem 1.5rem;
+    border-radius: 10px;
+    text-decoration: none;
+    font-weight: 500;
+    width: 100%;
+    display: inline-block;
+    transition: background-color 0.2s ease-in-out;
+}
+
+.feature-button:hover {
+    background: #2a5298;
+    color: white;
+    text-decoration: none;
+}
+</style>
+{% endblock %} 
