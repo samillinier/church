@@ -1,103 +1,95 @@
 # EPAPHRA Church Management System
 
-A comprehensive church management system built with Flask, designed to help churches efficiently manage their members, cell teams, teaching programs, finances, and more.
+A comprehensive church management system built with Flask, designed to help churches manage their members, cell teams, documents, marriages, and more.
 
 ## Features
 
-- **Member Management**
-  - Member registration and profiles
-  - Member analytics and reporting
-  - Contact information and emergency contacts
-  - Baptism and membership status tracking
+- Member Management
+  - Registration and profile management
+  - Photo upload support
+  - Member search and filtering
+  - Member analytics
 
-- **Cell Team Management**
+- Cell Team Management
   - Create and manage cell teams
   - Assign leaders and members
-  - Track meeting schedules and locations
-  - Monitor team activities
+  - Track meeting schedules
 
-- **Teaching Service**
-  - Program management
-  - Teacher assignments
-  - Student enrollment
-  - Teaching materials and resources
-  - Event planning and tracking
-
-- **Finance Management**
-  - Income and expense tracking
-  - Budget management
-  - Financial reporting
-  - Category-based organization
-  - Transaction history
-
-- **Document Management**
-  - Create and store church documents
+- Document Management
+  - Store and organize church documents
   - Document categorization
-  - File attachments
-  - Access control
+  - Search functionality
 
-- **Marriage Service**
-  - Marriage application processing
-  - Counseling session tracking
-  - Document requirements
-  - Wedding event planning
+- Marriage Service Management
+  - Track marriage applications
+  - Manage counseling sessions
+  - Document requirements tracking
 
-- **Appointment System**
-  - Schedule appointments
-  - Counseling session management
-  - Availability tracking
-  - Notification system
+- Financial Management
+  - Track income and expenses
+  - Generate financial reports
+  - Budget management
+
+- Teaching Service Management
+  - Manage programs and courses
+  - Track attendance
+  - Resource management
+
+- Notification System
+  - Birthday and anniversary reminders
+  - Event notifications
+  - Real-time updates
 
 ## Installation
 
 1. Clone the repository:
-   ```bash
-   git clone [repository-url]
-   cd EPOSPEA
-   ```
+```bash
+git clone <repository-url>
+cd EPOSPEA
+```
 
-2. Create a virtual environment:
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   ```
+2. Create a virtual environment and activate it:
+```bash
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+```
 
 3. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
+```bash
+pip install -r requirements.txt
+```
 
 4. Initialize the database:
-   ```bash
-   python init_db.py
-   ```
+```bash
+python app.py
+```
 
-5. Run the application:
-   ```bash
-   python app.py
-   ```
+5. Access the application:
+Open your browser and navigate to `http://localhost:3001`
 
-The application will be available at `http://localhost:3000`
+## Default Login
 
-## Default Admin Account
 - Username: admin
 - Password: admin123
 
-## Technology Stack
+## Directory Structure
 
-- Backend: Flask (Python)
-- Database: SQLite with SQLAlchemy ORM
-- Frontend: Bootstrap 5, Chart.js
-- Icons: Font Awesome
-- Authentication: Flask-Login
+```
+EPOSPEA/
+├── app.py              # Main application file
+├── static/            # Static files (CSS, JS, uploads)
+├── templates/         # HTML templates
+├── uploads/          # User uploaded files
+└── church.db         # SQLite database
+```
 
 ## Contributing
 
 1. Fork the repository
-2. Create a new branch for your feature
-3. Commit your changes
-4. Push to your branch
-5. Create a pull request
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
 
 ## License
 

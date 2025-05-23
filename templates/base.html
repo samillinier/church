@@ -8,10 +8,24 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
     <style>
+        :root {
+            --primary-gradient-start: #1e3c72;
+            --primary-gradient-end: #2a5298;
+            --light-text: rgba(255, 255, 255, 0.9);
+        }
+
         body {
             font-family: 'Poppins', sans-serif;
             background-color: #f8f9fa;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
         }
+
+        .container {
+            flex: 1;
+        }
+
         .navbar {
             background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
             padding: 1rem 0;
@@ -128,56 +142,262 @@
         }
         .notification-badge {
             position: absolute;
-            top: -5px;
-            right: -5px;
-            padding: 3px 6px;
-            border-radius: 50%;
-            background: red;
+            top: 5px;
+            right: 5px;
+            min-width: 18px;
+            height: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 9px;
+            background: #ff4757;
             color: white;
-            font-size: 10px;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 0 5px;
+            border: 2px solid var(--primary-gradient-start);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
         }
 
         .notification-bell {
             position: relative;
+            z-index: 1050;
             cursor: pointer;
             padding: 10px;
             margin-right: 15px;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: all 0.3s ease;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .notification-bell i {
+            color: white;
+            font-size: 1.2rem;
+            transition: all 0.3s ease;
         }
 
         .notification-bell:hover {
-            background-color: rgba(0, 0, 0, 0.1);
-            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .notification-bell:hover i {
+            transform: rotate(10deg);
         }
 
         .notification-dropdown {
             position: absolute;
-            top: 100%;
-            right: 0;
-            width: 300px;
+            top: calc(100% + 10px);
+            right: -10px;
+            width: 320px;
             background: white;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            border-radius: 12px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.2);
             display: none;
-            z-index: 1000;
+            z-index: 1051;
+            overflow: hidden;
+        }
+
+        .notification-dropdown::before {
+            content: '';
+            position: absolute;
+            top: -8px;
+            right: 20px;
+            width: 16px;
+            height: 16px;
+            background: linear-gradient(135deg, var(--primary-gradient-start), var(--primary-gradient-end));
+            transform: rotate(45deg);
+            border-radius: 4px;
+            z-index: -1;
+        }
+
+        .notification-dropdown::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            left: 0;
+            height: 16px;
+            background: linear-gradient(135deg, var(--primary-gradient-start), var(--primary-gradient-end));
+            border-radius: 12px 12px 0 0;
         }
 
         .notification-dropdown.show {
             display: block;
+            animation: dropdownSlideDown 0.3s ease forwards;
+        }
+
+        @keyframes dropdownSlideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .notification-dropdown > * {
+            position: relative;
+            z-index: 1;
+        }
+
+        .notification-dropdown .p-2.border-bottom {
+            background: linear-gradient(135deg, var(--primary-gradient-start), var(--primary-gradient-end));
+            padding: 15px !important;
+        }
+
+        .notification-dropdown h6 {
+            color: white;
+            margin: 0;
+            font-weight: 600;
+        }
+
+        .notification-dropdown a {
+            color: rgba(255, 255, 255, 0.9);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .notification-dropdown a:hover {
+            color: white;
         }
 
         .notification-item {
-            padding: 10px;
-            border-bottom: 1px solid #eee;
-            transition: background-color 0.2s;
+            padding: 15px;
+            border-bottom: 1px solid rgba(0,0,0,0.05);
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 12px;
         }
 
         .notification-item:hover {
             background-color: #f8f9fa;
+            padding-left: 20px;
         }
 
         .notification-item:last-child {
             border-bottom: none;
+        }
+
+        .notification-item i {
+            color: var(--primary-gradient-start);
+            font-size: 1.2rem;
+        }
+
+        .notification-item .notification-content {
+            flex: 1;
+        }
+
+        .notification-item .notification-title {
+            font-weight: 600;
+            color: #2d3436;
+            margin-bottom: 3px;
+            font-size: 0.9rem;
+        }
+
+        .notification-item .notification-text {
+            color: #636e72;
+            font-size: 0.85rem;
+            margin: 0;
+        }
+
+        .no-notifications {
+            text-align: center;
+            padding: 20px;
+            color: #636e72;
+            font-size: 0.9rem;
+        }
+
+        .footer {
+            background: linear-gradient(135deg, var(--primary-gradient-start), var(--primary-gradient-end));
+            color: var(--light-text);
+            padding: 2rem 0 0;
+            margin-top: 5rem;
+        }
+
+        .footer-section h5 {
+            color: white;
+            font-weight: 600;
+            position: relative;
+            padding-bottom: 15px;
+        }
+
+        .footer-section h5::after {
+            content: '';
+            position: absolute;
+            left: 0;
+            bottom: 0;
+            width: 50px;
+            height: 2px;
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .footer-section p {
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .footer-section ul li {
+            margin-bottom: 10px;
+        }
+
+        .footer-section ul li a {
+            color: rgba(255, 255, 255, 0.8);
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+
+        .footer-section ul li a:hover {
+            color: white;
+            padding-left: 5px;
+        }
+
+        .social-links a {
+            color: rgba(255, 255, 255, 0.8);
+            text-decoration: none;
+            font-size: 1.2rem;
+            transition: all 0.3s ease;
+            display: inline-block;
+        }
+
+        .social-links a:hover {
+            color: white;
+            transform: translateY(-3px);
+        }
+
+        .footer-bottom {
+            background: rgba(0, 0, 0, 0.1);
+            color: rgba(255, 255, 255, 0.8);
+            padding: 1rem 0;
+            margin-top: 3rem;
+        }
+
+        .footer i {
+            width: 20px;
+            text-align: center;
+        }
+
+        .navbar-brand .church-icon {
+            font-size: 2rem;
+            color: white;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 10px;
+            border-radius: 12px;
+            margin-right: 10px;
+            transition: all 0.3s ease;
+        }
+
+        .navbar-brand:hover .church-icon {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
         }
     </style>
 </head>
@@ -185,7 +405,7 @@
     <nav class="navbar navbar-expand-lg">
         <div class="container-fluid">
             <a class="navbar-brand" href="{{ url_for('index') }}">
-                <i class="fas fa-church me-2"></i>EPAPHRA Database
+                <i class="fas fa-church church-icon"></i>
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
@@ -215,14 +435,13 @@
                 <div class="d-flex align-items-center">
                     <!-- Notification Bell -->
                     <div class="notification-bell" onclick="toggleNotificationDropdown(event)">
-                        <i class="fas fa-bell text-light"></i>
+                        <i class="fas fa-bell"></i>
                         <span class="notification-badge" id="notification-count"></span>
-                        <!-- Notification Dropdown -->
                         <div class="notification-dropdown" id="notification-dropdown">
                             <div class="p-2 border-bottom">
                                 <div class="d-flex justify-content-between align-items-center">
-                                    <h6 class="mb-0">Notifications</h6>
-                                    <a href="{{ url_for('notifications') }}" class="text-decoration-none">View All</a>
+                                    <h6>Notifications</h6>
+                                    <a href="{{ url_for('notifications') }}">View All</a>
                                 </div>
                             </div>
                             <div id="notification-list">
@@ -252,6 +471,51 @@
         {% block content %}{% endblock %}
     </div>
 
+    <!-- Footer -->
+    <footer class="footer mt-5">
+        <div class="container">
+            <div class="row g-4 py-5">
+                <div class="col-md-4">
+                    <div class="footer-section">
+                        <h5 class="mb-4"><i class="fas fa-church me-2"></i>EPAPHRA</h5>
+                        <p class="text-muted">Empowering the church community through efficient management and organization.</p>
+                        <div class="social-links mt-3">
+                            <a href="#" class="me-3"><i class="fab fa-facebook-f"></i></a>
+                            <a href="#" class="me-3"><i class="fab fa-twitter"></i></a>
+                            <a href="#" class="me-3"><i class="fab fa-instagram"></i></a>
+                            <a href="#"><i class="fab fa-youtube"></i></a>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="footer-section">
+                        <h5 class="mb-4">Quick Links</h5>
+                        <ul class="list-unstyled">
+                            <li><a href="{{ url_for('dashboard') }}"><i class="fas fa-angle-right me-2"></i>Dashboard</a></li>
+                            <li><a href="{{ url_for('register') }}"><i class="fas fa-angle-right me-2"></i>Add Member</a></li>
+                            <li><a href="{{ url_for('cell_teams') }}"><i class="fas fa-angle-right me-2"></i>Cell Teams</a></li>
+                            <li><a href="{{ url_for('documents') }}"><i class="fas fa-angle-right me-2"></i>Documents</a></li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="footer-section">
+                        <h5 class="mb-4">Contact Info</h5>
+                        <ul class="list-unstyled">
+                            <li class="mb-2"><i class="fas fa-map-marker-alt me-2"></i>123 Church Street, City</li>
+                            <li class="mb-2"><i class="fas fa-phone me-2"></i>(123) 456-7890</li>
+                            <li class="mb-2"><i class="fas fa-envelope me-2"></i>info@epaphra.org</li>
+                            <li><i class="fas fa-clock me-2"></i>Mon - Fri, 9:00 AM - 5:00 PM</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class="footer-bottom text-center py-4 mt-4 border-top">
+                <p class="mb-0">&copy; {{ now.year }} EPAPHRA. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         function updateNotificationCount() {
@@ -262,6 +526,8 @@
                     if (data.count > 0) {
                         badge.textContent = data.count;
                         badge.style.display = 'block';
+                        // Load notifications when there are new ones
+                        loadNotifications();
                     } else {
                         badge.style.display = 'none';
                     }
@@ -269,32 +535,52 @@
         }
 
         function loadNotifications() {
-            fetch('/notifications')
-                .then(response => response.text())
-                .then(html => {
-                    const parser = new DOMParser();
-                    const doc = parser.parseFromString(html, 'text/html');
-                    const notifications = doc.querySelectorAll('.list-group-item');
-                    const container = document.getElementById('notification-list');
-                    container.innerHTML = '';
-                    
-                    if (notifications.length > 0) {
-                        notifications.forEach((notification, index) => {
-                            if (index < 5) {  // Show only 5 most recent notifications
-                                const item = document.createElement('div');
-                                item.className = 'notification-item';
-                                item.innerHTML = notification.innerHTML;
-                                container.appendChild(item);
-                            }
-                        });
-                    } else {
-                        container.innerHTML = `
-                            <div class="text-center p-3">
-                                <small class="text-muted">No new notifications</small>
+            fetch('/notifications', {
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(notifications => {
+                const container = document.getElementById('notification-list');
+                container.innerHTML = '';
+                
+                if (notifications && notifications.length > 0) {
+                    notifications.slice(0, 5).forEach(notification => {
+                        const item = document.createElement('div');
+                        item.className = 'notification-item';
+                        const icon = notification.type === 'birthday' ? 'fa-birthday-cake' : 
+                                   notification.type === 'anniversary' ? 'fa-heart' : 'fa-bell';
+                        item.innerHTML = `
+                            <i class="fas ${icon}"></i>
+                            <div class="notification-content">
+                                <div class="notification-title">${notification.title}</div>
+                                <p class="notification-text">${notification.message}</p>
+                                <small class="text-muted">${new Date(notification.created_at).toLocaleString()}</small>
                             </div>
                         `;
-                    }
-                });
+                        container.appendChild(item);
+                    });
+                } else {
+                    container.innerHTML = `
+                        <div class="no-notifications">
+                            <i class="fas fa-bell-slash mb-2" style="font-size: 1.5rem; color: #636e72;"></i>
+                            <p>No new notifications</p>
+                        </div>
+                    `;
+                }
+            })
+            .catch(error => {
+                console.error('Error loading notifications:', error);
+                const container = document.getElementById('notification-list');
+                container.innerHTML = `
+                    <div class="no-notifications">
+                        <i class="fas fa-exclamation-circle mb-2" style="font-size: 1.5rem; color: #e74c3c;"></i>
+                        <p>Error loading notifications</p>
+                    </div>
+                `;
+            });
         }
 
         function toggleNotificationDropdown(event) {
@@ -314,11 +600,14 @@
             }
         });
 
-        // Update notification count periodically
-        if (document.getElementById('notification-count')) {
-            updateNotificationCount();
-            setInterval(updateNotificationCount, 60000);  // Update every minute
-        }
+        // Load notifications immediately when the page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            if (document.getElementById('notification-count')) {
+                loadNotifications();
+                // Update notifications every 30 seconds
+                setInterval(loadNotifications, 30000);
+            }
+        });
     </script>
 </body>
 </html> 

@@ -48,6 +48,7 @@ class Member(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     first_name = db.Column(db.String(80), nullable=False)
     last_name = db.Column(db.String(80), nullable=False)
+    photo = db.Column(db.String(500))  # Path to stored photo
     date_of_birth = db.Column(db.Date)
     gender = db.Column(db.String(20))
     marital_status = db.Column(db.String(20))
@@ -255,6 +256,20 @@ def login():
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
+        # Handle photo upload
+        photo_path = None
+        if 'photo' in request.files:
+            photo = request.files['photo']
+            if photo.filename:
+                filename = secure_filename(photo.filename)
+                # Create uploads/member_photos directory if it doesn't exist
+                photos_dir = os.path.join(app.root_path, 'static', 'uploads', 'member_photos')
+                if not os.path.exists(photos_dir):
+                    os.makedirs(photos_dir)
+                # Save the photo
+                photo_path = os.path.join('uploads', 'member_photos', filename)
+                photo.save(os.path.join(app.root_path, 'static', photo_path))
+
         # Get basic information
         first_name = request.form.get('first_name')
         last_name = request.form.get('last_name')
@@ -291,6 +306,7 @@ def register():
         new_member = Member(
             first_name=first_name,
             last_name=last_name,
+            photo=photo_path,
             date_of_birth=date_of_birth,
             gender=gender,
             marital_status=marital_status,
@@ -326,6 +342,88 @@ def register():
             flash('Error registering member: ' + str(e))
             
     return render_template('register.html')
+
+@app.route('/member/edit/<int:member_id>', methods=['GET', 'POST'])
+@login_required
+def edit_member(member_id):
+    member = Member.query.get_or_404(member_id)
+    
+    if request.method == 'POST':
+        # Handle photo upload
+        if 'photo' in request.files:
+            photo = request.files['photo']
+            if photo.filename:
+                # Delete old photo if it exists
+                if member.photo:
+                    old_photo_path = os.path.join(app.root_path, 'static', member.photo)
+                    if os.path.exists(old_photo_path):
+                        os.remove(old_photo_path)
+                
+                filename = secure_filename(photo.filename)
+                photos_dir = os.path.join(app.root_path, 'static', 'uploads', 'member_photos')
+                if not os.path.exists(photos_dir):
+                    os.makedirs(photos_dir)
+                photo_path = os.path.join('uploads', 'member_photos', filename)
+                photo.save(os.path.join(app.root_path, 'static', photo_path))
+                member.photo = photo_path
+
+        # Update member information
+        member.first_name = request.form.get('first_name')
+        member.last_name = request.form.get('last_name')
+        member.email = request.form.get('email')
+        member.phone = request.form.get('phone')
+        member.date_of_birth = datetime.strptime(request.form.get('date_of_birth'), '%Y-%m-%d').date() if request.form.get('date_of_birth') else None
+        member.gender = request.form.get('gender')
+        member.marital_status = request.form.get('marital_status')
+        member.occupation = request.form.get('occupation')
+        member.emergency_contact_name = request.form.get('emergency_contact_name')
+        member.emergency_contact_phone = request.form.get('emergency_contact_phone')
+        member.address = request.form.get('address')
+        member.city = request.form.get('city')
+        member.state = request.form.get('state')
+        member.postal_code = request.form.get('postal_code')
+        member.membership_status = request.form.get('membership_status')
+        member.baptism_status = request.form.get('baptism_status') == 'yes'
+        member.baptism_date = datetime.strptime(request.form.get('baptism_date'), '%Y-%m-%d').date() if request.form.get('baptism_date') else None
+        member.previous_church = request.form.get('previous_church')
+        member.ministry = request.form.get('ministry')
+        member.spiritual_gifts = request.form.get('spiritual_gifts')
+        member.leadership_roles = request.form.get('leadership_roles')
+        member.family_members = request.form.get('family_members')
+        member.skills_talents = request.form.get('skills_talents')
+        member.prayer_requests = request.form.get('prayer_requests')
+        member.notes = request.form.get('notes')
+
+        try:
+            db.session.commit()
+            flash('Member updated successfully!')
+            return redirect(url_for('dashboard'))
+        except Exception as e:
+            db.session.rollback()
+            flash('Error updating member: ' + str(e))
+
+    return render_template('edit_member.html', member=member)
+
+@app.route('/member/delete/<int:member_id>', methods=['POST'])
+@login_required
+def delete_member(member_id):
+    member = Member.query.get_or_404(member_id)
+    
+    try:
+        # Delete member's photo if it exists
+        if member.photo:
+            photo_path = os.path.join(app.root_path, 'static', member.photo)
+            if os.path.exists(photo_path):
+                os.remove(photo_path)
+        
+        db.session.delete(member)
+        db.session.commit()
+        flash('Member deleted successfully!')
+    except Exception as e:
+        db.session.rollback()
+        flash('Error deleting member: ' + str(e))
+    
+    return redirect(url_for('dashboard'))
 
 @app.route('/dashboard')
 @login_required
@@ -873,6 +971,19 @@ def notifications():
         user_id=current_user.id,
         is_read=False
     ).order_by(Notification.created_at.desc()).all()
+    
+    # Check if this is an AJAX request
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify([{
+            'id': notification.id,
+            'type': notification.type,
+            'title': notification.title,
+            'message': notification.message,
+            'date': notification.date.strftime('%Y-%m-%d') if notification.date else None,
+            'created_at': notification.created_at.strftime('%Y-%m-%d %H:%M:%S')
+        } for notification in notifications])
+    
+    # For regular requests, return the HTML template
     return render_template('notifications.html', notifications=notifications)
 
 @app.route('/notifications/mark-read/<int:notification_id>')
@@ -1604,13 +1715,40 @@ def create_event():
     coordinators = Member.query.all()
     return render_template('teaching/create_event.html', programs=programs, coordinators=coordinators)
 
+@app.context_processor
+def inject_now():
+    return {'now': datetime.utcnow()}
+
 if __name__ == '__main__':
     with app.app_context():
+        # Drop all tables
+        db.drop_all()
+        # Create all tables
         db.create_all()
+        
         # Create admin user if it doesn't exist
         admin = User.query.filter_by(username='admin').first()
         if not admin:
             admin = User(username='admin', password='admin123', is_admin=True)
             db.session.add(admin)
-            db.session.commit()
-    app.run(debug=True, port=3000) 
+            
+            # Create a test notification for the admin
+            notification = Notification(
+                type='welcome',
+                title='Welcome to EPAPHRA',
+                message='Welcome to your church management system!',
+                date=datetime.utcnow().date(),
+                user_id=1,  # This will be the admin's ID
+                is_read=False,
+                created_at=datetime.utcnow()
+            )
+            db.session.add(notification)
+            
+            try:
+                db.session.commit()
+                print("Database initialized successfully with admin user and test notification")
+            except Exception as e:
+                db.session.rollback()
+                print("Error initializing database:", str(e))
+    
+    app.run(debug=True, port=3001) 
