@@ -1,67 +1,104 @@
 # EPAPHRA Church Management System
 
-A comprehensive church management system built with Flask, designed to help churches manage their members and cell teams (Bible study groups) effectively.
+A comprehensive church management system built with Flask, designed to help churches efficiently manage their members, cell teams, teaching programs, finances, and more.
 
 ## Features
 
 - **Member Management**
-  - Register new members with detailed information
-  - Track member details including personal info, contact details, and church involvement
-  - Search and filter member database
-  
+  - Member registration and profiles
+  - Member analytics and reporting
+  - Contact information and emergency contacts
+  - Baptism and membership status tracking
+
 - **Cell Team Management**
-  - Create and manage Bible study groups
-  - Assign leaders and members to teams
+  - Create and manage cell teams
+  - Assign leaders and members
   - Track meeting schedules and locations
-  - Search functionality for team members
+  - Monitor team activities
 
-- **User Authentication**
-  - Secure login system
-  - Admin dashboard access
-  - Protected routes
+- **Teaching Service**
+  - Program management
+  - Teacher assignments
+  - Student enrollment
+  - Teaching materials and resources
+  - Event planning and tracking
 
-## Technology Stack
+- **Finance Management**
+  - Income and expense tracking
+  - Budget management
+  - Financial reporting
+  - Category-based organization
+  - Transaction history
 
-- Python 3.x
-- Flask
-- SQLAlchemy
-- SQLite
-- Bootstrap 5
-- Font Awesome
+- **Document Management**
+  - Create and store church documents
+  - Document categorization
+  - File attachments
+  - Access control
+
+- **Marriage Service**
+  - Marriage application processing
+  - Counseling session tracking
+  - Document requirements
+  - Wedding event planning
+
+- **Appointment System**
+  - Schedule appointments
+  - Counseling session management
+  - Availability tracking
+  - Notification system
 
 ## Installation
 
 1. Clone the repository:
-```bash
-git clone https://github.com/samillinier/church.git
-cd church
-```
+   ```bash
+   git clone [repository-url]
+   cd EPOSPEA
+   ```
 
-2. Create and activate a virtual environment:
-```bash
-python -m venv venv
-source venv/bin/activate  # On Windows use: venv\Scripts\activate
-```
+2. Create a virtual environment:
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   ```
 
 3. Install dependencies:
-```bash
-pip install -r requirements.txt
-```
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-4. Run the application:
-```bash
-python app.py
-```
+4. Initialize the database:
+   ```bash
+   python init_db.py
+   ```
 
-The application will be available at `http://localhost:8080`
+5. Run the application:
+   ```bash
+   python app.py
+   ```
 
-## Default Login
+The application will be available at `http://localhost:3000`
 
+## Default Admin Account
 - Username: admin
 - Password: admin123
 
-*Note: Please change these credentials in a production environment*
+## Technology Stack
+
+- Backend: Flask (Python)
+- Database: SQLite with SQLAlchemy ORM
+- Frontend: Bootstrap 5, Chart.js
+- Icons: Font Awesome
+- Authentication: Flask-Login
+
+## Contributing
+
+1. Fork the repository
+2. Create a new branch for your feature
+3. Commit your changes
+4. Push to your branch
+5. Create a pull request
 
 ## License
 
-MIT License 
+This project is licensed under the MIT License - see the LICENSE file for details. 
