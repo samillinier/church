@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-4">
+        <div class="col">
+            <h2>
+                <i class="fas fa-file-alt me-2"></i>Documents
+            </h2>
+        </div>
+        <div class="col text-end">
+            <a href="{{ url_for('create_document') }}" class="btn btn-primary">
+                <i class="fas fa-plus me-2"></i>New Document
+            </a>
+        </div>
+    </div>
+
+    <!-- Search and Filter -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="GET" class="row g-3">
+                <div class="col-md-6">
+                    <div class="input-group">
+                        <input type="text" class="form-control" name="search" value="{{ search_query }}" placeholder="Search documents...">
+                        <button class="btn btn-outline-secondary" type="submit">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <select class="form-select" name="type" onchange="this.form.submit()">
+                        <option value="">All Types</option>
+                        <option value="letter" {% if current_type == 'letter' %}selected{% endif %}>Letters</option>
+                        <option value="report" {% if current_type == 'report' %}selected{% endif %}>Reports</option>
+                        <option value="announcement" {% if current_type == 'announcement' %}selected{% endif %}>Announcements</option>
+                        <option value="other" {% if current_type == 'other' %}selected{% endif %}>Other</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <button type="reset" class="btn btn-secondary w-100" onclick="window.location='{{ url_for('documents') }}'">
+                        <i class="fas fa-times me-2"></i>Clear
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Documents List -->
+    <div class="row">
+        {% for document in documents %}
+        <div class="col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-file me-2"></i>{{ document.title }}
+                        </h5>
+                        <span class="badge bg-primary">{{ document.document_type }}</span>
+                    </div>
+                    <p class="card-text text-muted small mb-2">
+                        Created: {{ document.created_at.strftime('%Y-%m-%d %H:%M') }}
+                    </p>
+                    <p class="card-text">{{ document.content[:200] }}{% if document.content|length > 200 %}...{% endif %}</p>
+                    {% if document.tags %}
+                    <div class="mb-2">
+                        {% for tag in document.tags.split(',') %}
+                        <span class="badge bg-secondary me-1">{{ tag.strip() }}</span>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    <div class="mt-3">
+                        <a href="{{ url_for('document_details', doc_id=document.id) }}" class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-eye me-1"></i>View
+                        </a>
+                        <a href="{{ url_for('edit_document', doc_id=document.id) }}" class="btn btn-sm btn-outline-secondary">
+                            <i class="fas fa-edit me-1"></i>Edit
+                        </a>
+                        {% if document.file_path %}
+                        <a href="{{ url_for('static', filename=document.file_path) }}" class="btn btn-sm btn-outline-success" target="_blank">
+                            <i class="fas fa-download me-1"></i>Download
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="col">
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i>No documents found.
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %} 

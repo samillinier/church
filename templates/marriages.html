@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h2><i class="fas fa-rings me-2"></i>Marriage Services</h2>
+                <div>
+                    <a href="{{ url_for('marriage_analytics') }}" class="btn btn-info me-2">
+                        <i class="fas fa-chart-line me-2"></i>Analytics & Reports
+                    </a>
+                    <a href="{{ url_for('create_marriage') }}" class="btn btn-primary">
+                        <i class="fas fa-plus me-2"></i>New Marriage Service
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search and Filter -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <form method="GET" class="d-flex">
+                <input type="text" name="search" class="form-control me-2" placeholder="Search by name, venue..." value="{{ search_query }}">
+                <button type="submit" class="btn btn-outline-primary">
+                    <i class="fas fa-search"></i>
+                </button>
+            </form>
+        </div>
+        <div class="col-md-4">
+            <select name="status" class="form-select" onchange="this.form.submit()">
+                <option value="">All Statuses</option>
+                <option value="Pending" {% if current_status == 'Pending' %}selected{% endif %}>Pending</option>
+                <option value="Approved" {% if current_status == 'Approved' %}selected{% endif %}>Approved</option>
+                <option value="Completed" {% if current_status == 'Completed' %}selected{% endif %}>Completed</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Marriage List -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Couple</th>
+                                    <th>Wedding Date</th>
+                                    <th>Venue</th>
+                                    <th>Service Type</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for marriage in marriages %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ marriage.bride.first_name }} {{ marriage.bride.last_name }}</strong>
+                                        <br>
+                                        <strong>{{ marriage.groom.first_name }} {{ marriage.groom.last_name }}</strong>
+                                    </td>
+                                    <td>{{ marriage.wedding_date.strftime('%Y-%m-%d') }}</td>
+                                    <td>{{ marriage.venue }}</td>
+                                    <td>{{ marriage.service_type }}</td>
+                                    <td>
+                                        <span class="badge {% if marriage.status == 'Pending' %}bg-warning{% elif marriage.status == 'Approved' %}bg-success{% else %}bg-info{% endif %}">
+                                            {{ marriage.status }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <a href="{{ url_for('marriage_details', marriage_id=marriage.id) }}" class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a href="{{ url_for('edit_marriage', marriage_id=marriage.id) }}" class="btn btn-sm btn-outline-secondary">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

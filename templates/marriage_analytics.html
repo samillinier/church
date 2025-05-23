@@ -1,0 +1,213 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h2><i class="fas fa-chart-line me-2"></i>Marriage Service Analytics</h2>
+                <a href="{{ url_for('marriages') }}" class="btn btn-primary">
+                    <i class="fas fa-arrow-left me-2"></i>Back to Marriages
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Overview Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <h5 class="card-title">Total Marriages</h5>
+                    <h2 class="mb-0">{{ total_marriages }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <h5 class="card-title">Course Completion</h5>
+                    <h2 class="mb-0">{{ (completed_courses / total_with_courses * 100)|round|int if total_with_courses > 0 else 0 }}%</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <h5 class="card-title">Avg. Waiting Period</h5>
+                    <h2 class="mb-0">{{ avg_waiting_period|round|int if avg_waiting_period else 0 }} days</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <h5 class="card-title">Pending Approvals</h5>
+                    <h2 class="mb-0">{{ status_counts|selectattr('0', 'equalto', 'Pending')|map(attribute='1')|first|default(0) }}</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <!-- Monthly Trend -->
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Monthly Marriage Trend</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="monthlyTrendChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Status Distribution -->
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Status Distribution</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="statusChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <!-- Service Types -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Service Types</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="serviceTypeChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Counseling Progress -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Counseling Progress</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="counselingChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Venue Statistics -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Popular Venues</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Venue</th>
+                                    <th>Number of Weddings</th>
+                                    <th>Percentage</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for venue, count in venue_stats %}
+                                <tr>
+                                    <td>{{ venue }}</td>
+                                    <td>{{ count }}</td>
+                                    <td>{{ (count / total_marriages * 100)|round|int }}%</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Include Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+// Monthly Trend Chart
+const monthlyData = {{ monthly_marriages|tojson }};
+new Chart(document.getElementById('monthlyTrendChart'), {
+    type: 'line',
+    data: {
+        labels: monthlyData.map(item => item[0]),
+        datasets: [{
+            label: 'Number of Marriages',
+            data: monthlyData.map(item => item[1]),
+            borderColor: '#1a237e',
+            tension: 0.1
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: {
+                position: 'top',
+            }
+        }
+    }
+});
+
+// Status Distribution Chart
+const statusData = {{ status_counts|tojson }};
+new Chart(document.getElementById('statusChart'), {
+    type: 'doughnut',
+    data: {
+        labels: statusData.map(item => item[0]),
+        datasets: [{
+            data: statusData.map(item => item[1]),
+            backgroundColor: ['#1a237e', '#4caf50', '#ff9800', '#f44336']
+        }]
+    }
+});
+
+// Service Type Chart
+const serviceTypeData = {{ service_types|tojson }};
+new Chart(document.getElementById('serviceTypeChart'), {
+    type: 'pie',
+    data: {
+        labels: serviceTypeData.map(item => item[0]),
+        datasets: [{
+            data: serviceTypeData.map(item => item[1]),
+            backgroundColor: ['#1a237e', '#283593', '#3949ab', '#3f51b5']
+        }]
+    }
+});
+
+// Counseling Progress Chart
+const counselingData = {{ counseling_stats|tojson }};
+new Chart(document.getElementById('counselingChart'), {
+    type: 'bar',
+    data: {
+        labels: counselingData.map(item => item[0]),
+        datasets: [{
+            label: 'Number of Couples',
+            data: counselingData.map(item => item[1]),
+            backgroundColor: '#1a237e'
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: {
+                position: 'top',
+            }
+        }
+    }
+});
+</script>
+{% endblock %} 

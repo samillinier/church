@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-4">
+        <div class="col">
+            <h2>
+                <i class="fas fa-rings-wedding me-2"></i>Marriage Service Details
+            </h2>
+        </div>
+        <div class="col text-end">
+            <a href="{{ url_for('edit_marriage', marriage_id=marriage.id) }}" class="btn btn-primary">
+                <i class="fas fa-edit me-2"></i>Edit Service
+            </a>
+            <a href="{{ url_for('marriages') }}" class="btn btn-secondary ms-2">
+                <i class="fas fa-arrow-left me-2"></i>Back to Marriages
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Main Marriage Info -->
+        <div class="col-md-8">
+            <!-- Couple Information -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Couple Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="fw-bold">Bride</h6>
+                            <p class="mb-1">{{ marriage.bride_name }}</p>
+                            <p class="text-muted small">Contact: {{ marriage.bride_contact }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="fw-bold">Groom</h6>
+                            <p class="mb-1">{{ marriage.groom_name }}</p>
+                            <p class="text-muted small">Contact: {{ marriage.groom_contact }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Wedding Details -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Wedding Details</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Wedding Date:</strong><br>
+                            {{ marriage.wedding_date.strftime('%B %d, %Y') }}</p>
+                            
+                            <p><strong>Venue:</strong><br>
+                            {{ marriage.venue }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Service Type:</strong><br>
+                            {{ marriage.service_type }}</p>
+                            
+                            <p><strong>Officiating Minister:</strong><br>
+                            {{ marriage.officiating_minister or 'Not assigned' }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Witnesses -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Witnesses</h5>
+                </div>
+                <div class="card-body">
+                    <p class="mb-0">{{ marriage.witnesses or 'No witnesses listed' }}</p>
+                </div>
+            </div>
+
+            <!-- Special Requirements -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Special Requirements</h5>
+                </div>
+                <div class="card-body">
+                    <p class="mb-0">{{ marriage.special_requirements or 'No special requirements' }}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar Info -->
+        <div class="col-md-4">
+            <!-- Status Information -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Status Information</h5>
+                </div>
+                <div class="card-body">
+                    <p class="mb-2">
+                        <strong>Service Status:</strong><br>
+                        <span class="badge bg-{{ 'primary' if marriage.status == 'Pending' else 'success' if marriage.status == 'Approved' else 'info' }}">
+                            {{ marriage.status }}
+                        </span>
+                    </p>
+                    <p class="mb-2">
+                        <strong>Counseling Status:</strong><br>
+                        <span class="badge bg-{{ 'warning' if marriage.counseling_status == 'Pending' else 'success' if marriage.counseling_status == 'Completed' else 'secondary' }}">
+                            {{ marriage.counseling_status }}
+                        </span>
+                    </p>
+                    <p class="mb-0">
+                        <strong>Parents' Approval:</strong><br>
+                        <i class="fas fa-{{ 'check text-success' if marriage.parents_approval else 'times text-danger' }}"></i>
+                        {{ 'Obtained' if marriage.parents_approval else 'Not Obtained' }}
+                    </p>
+                </div>
+            </div>
+
+            <!-- Counseling Notes -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Counseling Notes</h5>
+                </div>
+                <div class="card-body">
+                    <p class="mb-0">{{ marriage.counseling_notes or 'No counseling notes available' }}</p>
+                </div>
+            </div>
+
+            <!-- Timeline -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Timeline</h5>
+                </div>
+                <div class="card-body">
+                    <div class="small">
+                        <p class="mb-1">
+                            <strong>Created:</strong><br>
+                            {{ marriage.created_at.strftime('%Y-%m-%d %H:%M') }}
+                        </p>
+                        <p class="mb-0">
+                            <strong>Last Updated:</strong><br>
+                            {{ marriage.updated_at.strftime('%Y-%m-%d %H:%M') }}
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

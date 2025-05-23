@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="text-center mb-0">
+                        <i class="fas fa-file-plus me-2"></i>Create New Document
+                    </h3>
+                </div>
+                <div class="card-body">
+                    <form method="POST" enctype="multipart/form-data">
+                        <div class="mb-3">
+                            <label for="title" class="form-label">Title</label>
+                            <input type="text" class="form-control" id="title" name="title" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="document_type" class="form-label">Document Type</label>
+                            <select class="form-select" id="document_type" name="document_type" required>
+                                <option value="">Select Type</option>
+                                <option value="letter">Letter</option>
+                                <option value="report">Report</option>
+                                <option value="announcement">Announcement</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="content" class="form-label">Content</label>
+                            <textarea class="form-control" id="content" name="content" rows="6" required></textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="document_file" class="form-label">Attach File (Optional)</label>
+                            <input type="file" class="form-control" id="document_file" name="document_file">
+                            <div class="form-text">Supported formats: PDF, DOC, DOCX, XLS, XLSX, TXT, etc.</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="tags" class="form-label">Tags</label>
+                            <input type="text" class="form-control" id="tags" name="tags" placeholder="Enter tags separated by commas">
+                            <div class="form-text">Example: important, meeting, financial</div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label">Related Members</label>
+                            <div class="input-group mb-3">
+                                <input type="text" class="form-control" id="memberSearch" placeholder="Search members..." onkeyup="filterMembers()">
+                                <button class="btn btn-outline-secondary" type="button" onclick="clearSearch()">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                            <div class="member-list border rounded p-3" style="max-height: 200px; overflow-y: auto;">
+                                {% for member in members %}
+                                <div class="form-check member-item mb-2">
+                                    <input class="form-check-input" type="checkbox" name="related_members" value="{{ member.id }}" id="member{{ member.id }}">
+                                    <label class="form-check-label" for="member{{ member.id }}">
+                                        {{ member.first_name }} {{ member.last_name }}
+                                        <small class="text-muted d-block">{{ member.email }}</small>
+                                    </label>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <div class="text-center">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-save me-2"></i>Save Document
+                            </button>
+                            <a href="{{ url_for('documents') }}" class="btn btn-secondary btn-lg ms-2">
+                                <i class="fas fa-times me-2"></i>Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function filterMembers() {
+    const searchText = document.getElementById('memberSearch').value.toLowerCase();
+    const memberItems = document.getElementsByClassName('member-item');
+    
+    Array.from(memberItems).forEach(item => {
+        const label = item.getElementsByClassName('form-check-label')[0];
+        const text = label.textContent.toLowerCase();
+        if (text.includes(searchText)) {
+            item.style.display = '';
+        } else {
+            item.style.display = 'none';
+        }
+    });
+}
+
+function clearSearch() {
+    document.getElementById('memberSearch').value = '';
+    Array.from(document.getElementsByClassName('member-item')).forEach(item => {
+        item.style.display = '';
+    });
+}
+</script>
+{% endblock %} 

@@ -1,0 +1,319 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-10">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="text-center mb-0">
+                        <i class="fas fa-rings-wedding me-2"></i>New Marriage Service
+                    </h3>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        <!-- Couple Selection -->
+                        <div class="row mb-4">
+                            <h5 class="mb-3">Couple Selection</h5>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="bride_search" class="form-label">Search Bride</label>
+                                    <div class="input-group">
+                                        <input type="text" class="form-control" id="bride_search" placeholder="Search by name or email...">
+                                        <button type="button" class="btn btn-outline-secondary" onclick="searchMembers('bride')">
+                                            <i class="fas fa-search"></i>
+                                        </button>
+                                    </div>
+                                    <div id="bride_results" class="member-results mt-2"></div>
+                                    <input type="hidden" name="bride_id" id="bride_id" required>
+                                    <div id="selected_bride" class="selected-member mt-2"></div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="groom_search" class="form-label">Search Groom</label>
+                                    <div class="input-group">
+                                        <input type="text" class="form-control" id="groom_search" placeholder="Search by name or email...">
+                                        <button type="button" class="btn btn-outline-secondary" onclick="searchMembers('groom')">
+                                            <i class="fas fa-search"></i>
+                                        </button>
+                                    </div>
+                                    <div id="groom_results" class="member-results mt-2"></div>
+                                    <input type="hidden" name="groom_id" id="groom_id" required>
+                                    <div id="selected_groom" class="selected-member mt-2"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Wedding Details -->
+                        <div class="row mb-4">
+                            <h5 class="mb-3">Wedding Details</h5>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="wedding_date" class="form-label">Wedding Date</label>
+                                    <input type="date" class="form-control" id="wedding_date" name="wedding_date" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="venue" class="form-label">Venue</label>
+                                    <input type="text" class="form-control" id="venue" name="venue" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="service_type" class="form-label">Service Type</label>
+                                    <select class="form-select" id="service_type" name="service_type" required>
+                                        <option value="">Select Type</option>
+                                        <option value="Traditional">Traditional</option>
+                                        <option value="Church Wedding">Church Wedding</option>
+                                        <option value="Civil Wedding">Civil Wedding</option>
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="officiating_minister" class="form-label">Officiating Minister</label>
+                                    <input type="text" class="form-control" id="officiating_minister" name="officiating_minister">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Course Requirements -->
+                        <div class="row mb-4">
+                            <h5 class="mb-3">Course Requirements</h5>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Required Courses</label>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="required_courses" value="pre_marriage" id="course_pre_marriage">
+                                        <label class="form-check-label" for="course_pre_marriage">Pre-Marriage Course</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="required_courses" value="marriage_prep" id="course_marriage_prep">
+                                        <label class="form-check-label" for="course_marriage_prep">Marriage Preparation</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="required_courses" value="counseling" id="course_counseling">
+                                        <label class="form-check-label" for="course_counseling">Marriage Counseling</label>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="next_course_date" class="form-label">Next Course Date</label>
+                                    <input type="date" class="form-control" id="next_course_date" name="next_course_date">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="course_notes" class="form-label">Course Notes</label>
+                                    <textarea class="form-control" id="course_notes" name="course_notes" rows="4"></textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Waiting Period -->
+                        <div class="row mb-4">
+                            <h5 class="mb-3">Waiting Period</h5>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="application_date" class="form-label">Application Date</label>
+                                    <input type="date" class="form-control" id="application_date" name="application_date" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="waiting_period_status" class="form-label">Waiting Period Status</label>
+                                    <select class="form-select" id="waiting_period_status" name="waiting_period_status">
+                                        <option value="In Progress">In Progress</option>
+                                        <option value="Completed">Completed</option>
+                                        <option value="Waived">Waived</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="waiver_reason" class="form-label">Waiver Reason (if applicable)</label>
+                                    <textarea class="form-control" id="waiver_reason" name="waiver_reason" rows="4"></textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Additional Information -->
+                        <div class="row mb-4">
+                            <h5 class="mb-3">Additional Information</h5>
+                            <div class="col-12">
+                                <div class="mb-3">
+                                    <label for="counseling_status" class="form-label">Counseling Status</label>
+                                    <select class="form-select" id="counseling_status" name="counseling_status">
+                                        <option value="Not Started">Not Started</option>
+                                        <option value="Pending">Pending</option>
+                                        <option value="Completed">Completed</option>
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="counseling_notes" class="form-label">Counseling Notes</label>
+                                    <textarea class="form-control" id="counseling_notes" name="counseling_notes" rows="3"></textarea>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="next_counseling_date" class="form-label">Next Counseling Session</label>
+                                    <input type="date" class="form-control" id="next_counseling_date" name="next_counseling_date">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="witnesses" class="form-label">Witnesses</label>
+                                    <textarea class="form-control" id="witnesses" name="witnesses" rows="2" placeholder="Enter names of witnesses"></textarea>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="special_requirements" class="form-label">Special Requirements</label>
+                                    <textarea class="form-control" id="special_requirements" name="special_requirements" rows="3" placeholder="Any special arrangements or requirements"></textarea>
+                                </div>
+                                <div class="mb-3 form-check">
+                                    <input type="checkbox" class="form-check-input" id="parents_approval" name="parents_approval">
+                                    <label class="form-check-label" for="parents_approval">Parents' Approval Obtained</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="text-center">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-save me-2"></i>Create Marriage Service
+                            </button>
+                            <a href="{{ url_for('marriages') }}" class="btn btn-secondary btn-lg ms-2">
+                                <i class="fas fa-times me-2"></i>Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.member-results {
+    max-height: 200px;
+    overflow-y: auto;
+    border: 1px solid #dee2e6;
+    border-radius: 0.25rem;
+    display: none;
+    background: white;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    z-index: 1000;
+    position: absolute;
+    width: 100%;
+}
+
+.member-result-item {
+    padding: 0.75rem;
+    cursor: pointer;
+    border-bottom: 1px solid #dee2e6;
+    transition: background-color 0.2s;
+}
+
+.member-result-item:hover {
+    background-color: #f8f9fa;
+}
+
+.member-result-item:last-child {
+    border-bottom: none;
+}
+
+.selected-member {
+    padding: 0.75rem;
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 0.25rem;
+    margin-top: 0.5rem;
+    display: none;
+}
+
+.badge {
+    font-size: 0.75rem;
+    padding: 0.25em 0.5em;
+}
+</style>
+
+<script>
+function searchMembers(type) {
+    const searchInput = document.getElementById(`${type}_search`).value;
+    const resultsDiv = document.getElementById(`${type}_results`);
+    
+    if (searchInput.length < 2) {
+        resultsDiv.style.display = 'none';
+        return;
+    }
+    
+    resultsDiv.style.display = 'block';
+    resultsDiv.innerHTML = '<div class="p-2">Searching...</div>';
+    
+    // Make AJAX call to search members
+    fetch(`/api/search_members?q=${encodeURIComponent(searchInput)}`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.length === 0) {
+                resultsDiv.innerHTML = '<div class="p-2 text-muted">No members found</div>';
+                return;
+            }
+            
+            resultsDiv.innerHTML = data.map(member => `
+                <div class="member-result-item" onclick="selectMember('${type}', ${member.id}, '${member.first_name}', '${member.last_name}', '${member.email}', '${member.phone}', '${member.membership_status}')">
+                    <strong>${member.first_name} ${member.last_name}</strong><br>
+                    <small class="text-muted">${member.email} • ${member.phone}</small>
+                    <span class="badge ${member.membership_status === 'Active' ? 'bg-success' : 'bg-warning'} ms-2">
+                        ${member.membership_status}
+                    </span>
+                </div>
+            `).join('');
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            resultsDiv.innerHTML = '<div class="p-2 text-danger">Error searching members</div>';
+        });
+}
+
+function selectMember(type, id, firstName, lastName, email, phone, status) {
+    document.getElementById(`${type}_id`).value = id;
+    document.getElementById(`${type}_search`).value = `${firstName} ${lastName}`;
+    document.getElementById(`${type}_results`).style.display = 'none';
+    
+    const selectedDiv = document.getElementById(`selected_${type}`);
+    selectedDiv.style.display = 'block';
+    selectedDiv.innerHTML = `
+        <div class="d-flex justify-content-between align-items-start">
+            <div>
+                <strong>${firstName} ${lastName}</strong>
+                <span class="badge ${status === 'Active' ? 'bg-success' : 'bg-warning'} ms-2">${status}</span><br>
+                <small class="text-muted">${email} • ${phone}</small>
+            </div>
+            <button type="button" class="btn btn-sm btn-link text-danger" onclick="clearSelection('${type}')">
+                <i class="fas fa-times"></i> Clear
+            </button>
+        </div>
+    `;
+}
+
+function clearSelection(type) {
+    document.getElementById(`${type}_id`).value = '';
+    document.getElementById(`${type}_search`).value = '';
+    document.getElementById(`selected_${type}`).style.display = 'none';
+}
+
+// Add debounce to search
+let searchTimeout = null;
+const searchInputs = ['bride_search', 'groom_search'];
+searchInputs.forEach(inputId => {
+    const input = document.getElementById(inputId);
+    input.addEventListener('input', (e) => {
+        const type = inputId.split('_')[0];
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => searchMembers(type), 300);
+    });
+});
+
+// Close results when clicking outside
+document.addEventListener('click', function(event) {
+    if (!event.target.closest('.member-results') && !event.target.closest('input') && !event.target.closest('button')) {
+        document.getElementById('bride_results').style.display = 'none';
+        document.getElementById('groom_results').style.display = 'none';
+    }
+});
+</script>
+{% endblock %} 
