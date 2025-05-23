@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3">Teaching Programs</h1>
+        <a href="{{ url_for('create_program') }}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> New Program
+        </a>
+    </div>
+    
+    <!-- Filters -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="GET" class="row g-3">
+                <div class="col-md-3">
+                    <label for="type" class="form-label">Program Type</label>
+                    <select class="form-control" id="type" name="type">
+                        <option value="">All Types</option>
+                        <option value="sunday_school">Sunday School</option>
+                        <option value="youth">Youth Ministry</option>
+                        <option value="children">Children's Ministry</option>
+                        <option value="bible_study">Bible Study</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="status" class="form-label">Status</label>
+                    <select class="form-control" id="status" name="status">
+                        <option value="">All Status</option>
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label for="search" class="form-label">Search</label>
+                    <input type="text" class="form-control" id="search" name="search" placeholder="Search programs...">
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">Filter</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Programs Grid -->
+    <div class="row">
+        {% for program in programs %}
+        <div class="col-md-4 mb-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <h5 class="card-title">{{ program.name }}</h5>
+                        <span class="badge bg-{{ 'success' if program.status == 'active' else 'secondary' }}">
+                            {{ program.status }}
+                        </span>
+                    </div>
+                    
+                    <p class="card-text">{{ program.description }}</p>
+                    
+                    <div class="mb-3">
+                        <small class="text-muted">
+                            <i class="fas fa-users me-1"></i> {{ program.program_type|replace('_', ' ')|title }}
+                        </small><br>
+                        <small class="text-muted">
+                            <i class="fas fa-child me-1"></i> {{ program.age_group }}
+                        </small><br>
+                        <small class="text-muted">
+                            <i class="fas fa-calendar me-1"></i> {{ program.schedule }}
+                        </small><br>
+                        <small class="text-muted">
+                            <i class="fas fa-map-marker-alt me-1"></i> {{ program.location }}
+                        </small>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <a href="#" class="btn btn-sm btn-outline-primary me-1">
+                                <i class="fas fa-users"></i> Students
+                            </a>
+                            <a href="#" class="btn btn-sm btn-outline-success me-1">
+                                <i class="fas fa-chalkboard-teacher"></i> Teachers
+                            </a>
+                        </div>
+                        <div class="dropdown">
+                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                Actions
+                            </button>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="#">Edit Program</a></li>
+                                <li><a class="dropdown-item" href="#">View Materials</a></li>
+                                <li><a class="dropdown-item" href="#">Schedule Event</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item text-danger" href="#">Deactivate</a></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %} 

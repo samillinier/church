@@ -99,6 +99,60 @@
                 </div>
             </div>
         </div>
+
+        <!-- Counseling & Appointments Card -->
+        <div class="col-md-3">
+            <div class="card h-100 text-center shadow-sm theme-card">
+                <div class="card-body d-flex flex-column justify-content-between p-4">
+                    <div>
+                        <div class="icon-circle mb-4">
+                            <i class="fas fa-calendar-alt fa-2x"></i>
+                        </div>
+                        <h5 class="card-title fw-bold mb-3">Counseling & Appointments</h5>
+                        <p class="card-text mb-4">Schedule and manage counseling sessions and appointments.</p>
+                    </div>
+                    <a href="{{ url_for('appointments') }}" class="btn btn-light btn-lg w-100">
+                        <i class="fas fa-calendar-check me-2"></i>Appointments
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Finance Module Card -->
+        <div class="col-md-3">
+            <div class="card h-100 text-center shadow-sm theme-card">
+                <div class="card-body d-flex flex-column justify-content-between p-4">
+                    <div>
+                        <div class="icon-circle mb-4">
+                            <i class="fas fa-money-bill-wave fa-2x"></i>
+                        </div>
+                        <h5 class="card-title fw-bold mb-3">Finance</h5>
+                        <p class="card-text mb-4">Manage church finances, transactions, budgets, and generate reports.</p>
+                    </div>
+                    <a href="{{ url_for('finance_dashboard') }}" class="btn btn-light btn-lg w-100">
+                        <i class="fas fa-chart-line me-2"></i>Finance
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Teaching Service Card -->
+        <div class="col-md-3">
+            <div class="card h-100 text-center shadow-sm theme-card">
+                <div class="card-body d-flex flex-column justify-content-between p-4">
+                    <div>
+                        <div class="icon-circle mb-4">
+                            <i class="fas fa-chalkboard-teacher fa-2x"></i>
+                        </div>
+                        <h5 class="card-title fw-bold mb-3">Teaching Service</h5>
+                        <p class="card-text mb-4">Manage Sunday School, Youth & Children's Ministry, and Bible Study programs.</p>
+                    </div>
+                    <a href="{{ url_for('teaching_dashboard') }}" class="btn btn-light btn-lg w-100">
+                        <i class="fas fa-graduation-cap me-2"></i>Teaching
+                    </a>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 

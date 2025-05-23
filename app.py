@@ -6,6 +6,7 @@ from sqlalchemy import or_
 import os
 from werkzeug.utils import secure_filename
 import json
+import calendar
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-here'
@@ -142,6 +143,94 @@ class Notification(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     reference_id = db.Column(db.Integer)  # ID of the related member or marriage
 
+class Appointment(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    member_id = db.Column(db.Integer, db.ForeignKey('member.id'))
+    counselor_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    appointment_type = db.Column(db.String(50))  # Marriage, Personal, Family, etc.
+    date = db.Column(db.Date, nullable=False)
+    time = db.Column(db.String(10), nullable=False)  # Format: "HH:MM"
+    duration = db.Column(db.Integer, default=60)  # Duration in minutes
+    status = db.Column(db.String(20), default='Pending')  # Pending, Confirmed, Completed, Cancelled
+    notes = db.Column(db.Text)
+    reason = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    member = db.relationship('Member', backref='appointments')
+    counselor = db.relationship('User', backref='counseling_appointments')
+
+class FinanceCategory(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    type = db.Column(db.String(20), nullable=False)  # 'income' or 'expense'
+    description = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    transactions = db.relationship('FinanceTransaction', backref='category', lazy=True)
+
+class FinanceTransaction(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    category_id = db.Column(db.Integer, db.ForeignKey('finance_category.id'), nullable=False)
+    amount = db.Column(db.Float, nullable=False)
+    transaction_type = db.Column(db.String(20), nullable=False)  # 'income' or 'expense'
+    payment_method = db.Column(db.String(50))  # cash, check, bank transfer, etc.
+    reference_number = db.Column(db.String(100))  # check number, transfer reference, etc.
+    description = db.Column(db.Text)
+    transaction_date = db.Column(db.Date, nullable=False)
+    recorded_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    recorded_at = db.Column(db.DateTime, default=datetime.utcnow)
+    status = db.Column(db.String(20), default='completed')  # pending, completed, cancelled
+    notes = db.Column(db.Text)
+    
+    # For offerings/tithes
+    service_type = db.Column(db.String(50))  # Sunday Service, Midweek, Special Event, etc.
+    envelope_number = db.Column(db.String(50))
+    donor_name = db.Column(db.String(200))
+    is_anonymous = db.Column(db.Boolean, default=False)
+    
+    # For expenses
+    vendor_name = db.Column(db.String(200))
+    receipt_number = db.Column(db.String(100))
+    approved_by = db.Column(db.Integer, db.ForeignKey('user.id'))
+    approval_date = db.Column(db.DateTime)
+    
+    # Relationships
+    recorder = db.relationship('User', foreign_keys=[recorded_by], backref='recorded_transactions')
+    approver = db.relationship('User', foreign_keys=[approved_by], backref='approved_transactions')
+
+class FinancialReport(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    report_type = db.Column(db.String(50), nullable=False)  # daily, weekly, monthly, annual
+    start_date = db.Column(db.Date, nullable=False)
+    end_date = db.Column(db.Date, nullable=False)
+    total_income = db.Column(db.Float, default=0)
+    total_expense = db.Column(db.Float, default=0)
+    balance = db.Column(db.Float, default=0)
+    generated_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    generated_at = db.Column(db.DateTime, default=datetime.utcnow)
+    notes = db.Column(db.Text)
+    status = db.Column(db.String(20), default='draft')  # draft, final, archived
+    report_data = db.Column(db.Text)  # JSON string containing detailed report data
+
+class Budget(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    category_id = db.Column(db.Integer, db.ForeignKey('finance_category.id'), nullable=False)
+    year = db.Column(db.Integer, nullable=False)
+    month = db.Column(db.Integer)  # Null for annual budgets
+    amount = db.Column(db.Float, nullable=False)
+    actual_amount = db.Column(db.Float, default=0)
+    variance = db.Column(db.Float, default=0)
+    notes = db.Column(db.Text)
+    created_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    status = db.Column(db.String(20), default='active')  # active, closed
+    
+    # Relationships
+    category = db.relationship('FinanceCategory', backref='budgets')
+    creator = db.relationship('User', backref='created_budgets')
+
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
@@ -257,6 +346,84 @@ def dashboard():
     else:
         members = Member.query.all()
     return render_template('dashboard.html', members=members, search_query=search_query)
+
+@app.route('/member-analytics')
+@login_required
+def member_analytics():
+    # Get total members
+    total_members = Member.query.count()
+    
+    # Get membership status distribution
+    status_counts = db.session.query(
+        Member.membership_status,
+        db.func.count(Member.id)
+    ).group_by(Member.membership_status).all()
+    
+    # Get ministry distribution
+    ministry_counts = db.session.query(
+        Member.ministry,
+        db.func.count(Member.id)
+    ).group_by(Member.ministry).all()
+    
+    # Get gender distribution
+    gender_counts = db.session.query(
+        Member.gender,
+        db.func.count(Member.id)
+    ).group_by(Member.gender).all()
+    
+    # Get age group distribution
+    current_year = datetime.utcnow().year
+    age_groups = {
+        '0-12': 0,
+        '13-18': 0,
+        '19-30': 0,
+        '31-50': 0,
+        '51+': 0
+    }
+    
+    members = Member.query.filter(Member.date_of_birth != None).all()
+    for member in members:
+        age = current_year - member.date_of_birth.year
+        if age <= 12:
+            age_groups['0-12'] += 1
+        elif age <= 18:
+            age_groups['13-18'] += 1
+        elif age <= 30:
+            age_groups['19-30'] += 1
+        elif age <= 50:
+            age_groups['31-50'] += 1
+        else:
+            age_groups['51+'] += 1
+    
+    # Get baptism statistics
+    baptism_stats = {
+        'baptized': Member.query.filter_by(baptism_status=True).count(),
+        'not_baptized': Member.query.filter_by(baptism_status=False).count()
+    }
+    
+    # Get monthly member growth (last 12 months)
+    current_date = datetime.utcnow()
+    last_year = current_date - timedelta(days=365)
+    monthly_growth = db.session.query(
+        db.func.strftime('%Y-%m', Member.date_joined).label('month'),
+        db.func.count(Member.id)
+    ).filter(Member.date_joined >= last_year).group_by('month').all()
+    
+    # Get marital status distribution
+    marital_status_counts = db.session.query(
+        Member.marital_status,
+        db.func.count(Member.id)
+    ).group_by(Member.marital_status).all()
+    
+    return render_template('member_analytics.html',
+                         total_members=total_members,
+                         status_counts=status_counts,
+                         ministry_counts=ministry_counts,
+                         gender_counts=gender_counts,
+                         age_groups=age_groups,
+                         baptism_stats=baptism_stats,
+                         monthly_growth=monthly_growth,
+                         marital_status_counts=marital_status_counts)
 
 @app.route('/logout')
 @login_required
@@ -530,18 +697,14 @@ def search_members():
         or_(
             Member.first_name.ilike(search),
             Member.last_name.ilike(search),
-            Member.email.ilike(search),
-            Member.phone.ilike(search)
+            Member.email.ilike(search)
         )
     ).limit(10).all()
     
     return jsonify([{
         'id': member.id,
-        'first_name': member.first_name,
-        'last_name': member.last_name,
-        'email': member.email,
-        'phone': member.phone,
-        'membership_status': member.membership_status
+        'name': f"{member.first_name} {member.last_name}",
+        'email': member.email
     } for member in members])
 
 @app.route('/marriages/create', methods=['GET', 'POST'])
@@ -730,6 +893,108 @@ def notification_count():
     ).count()
     return jsonify({'count': count})
 
+@app.route('/appointments')
+@login_required
+def appointments():
+    # Get filter parameters
+    status_filter = request.args.get('status', '')
+    type_filter = request.args.get('type', '')
+    date_filter = request.args.get('date', '')
+    
+    # Base query
+    query = Appointment.query
+    
+    # Apply filters
+    if status_filter:
+        query = query.filter_by(status=status_filter)
+    if type_filter:
+        query = query.filter_by(appointment_type=type_filter)
+    if date_filter:
+        date = datetime.strptime(date_filter, '%Y-%m-%d').date()
+        query = query.filter_by(date=date)
+    
+    # Get appointments
+    if current_user.is_admin:
+        appointments = query.order_by(Appointment.date.desc()).all()
+    else:
+        appointments = query.filter_by(counselor_id=current_user.id).order_by(Appointment.date.desc()).all()
+    
+    return render_template('appointments.html', 
+                         appointments=appointments,
+                         status_filter=status_filter,
+                         type_filter=type_filter,
+                         date_filter=date_filter)
+
+@app.route('/appointments/create', methods=['GET', 'POST'])
+@login_required
+def create_appointment():
+    if request.method == 'POST':
+        member_id = request.form.get('member_id')
+        counselor_id = request.form.get('counselor_id')
+        appointment_type = request.form.get('appointment_type')
+        date = datetime.strptime(request.form.get('date'), '%Y-%m-%d').date()
+        time = request.form.get('time')
+        duration = int(request.form.get('duration', 60))
+        reason = request.form.get('reason')
+        notes = request.form.get('notes')
+        
+        # Check for time conflicts
+        existing_appointment = Appointment.query.filter_by(
+            counselor_id=counselor_id,
+            date=date,
+            time=time
+        ).first()
+        
+        if existing_appointment:
+            flash('This time slot is already booked. Please choose another time.')
+            return redirect(url_for('create_appointment'))
+        
+        appointment = Appointment(
+            member_id=member_id,
+            counselor_id=counselor_id,
+            appointment_type=appointment_type,
+            date=date,
+            time=time,
+            duration=duration,
+            reason=reason,
+            notes=notes,
+            status='Pending'
+        )
+        
+        try:
+            db.session.add(appointment)
+            db.session.commit()
+            flash('Appointment scheduled successfully!')
+            return redirect(url_for('appointments'))
+        except Exception as e:
+            db.session.rollback()
+            flash('Error scheduling appointment: ' + str(e))
+    
+    # Get list of counselors for the form
+    counselors = User.query.filter_by(is_admin=True).all()
+    
+    return render_template('create_appointment.html',
+                         counselors=counselors)
+
+@app.route('/appointments/<int:appointment_id>')
+@login_required
+def appointment_details(appointment_id):
+    appointment = Appointment.query.get_or_404(appointment_id)
+    return render_template('appointment_details.html', appointment=appointment)
+
+@app.route('/appointments/<int:appointment_id>/update-status', methods=['POST'])
+@login_required
+def update_appointment_status(appointment_id):
+    appointment = Appointment.query.get_or_404(appointment_id)
+    new_status = request.form.get('status')
+    
+    if new_status in ['Pending', 'Confirmed', 'Completed', 'Cancelled']:
+        appointment.status = new_status
+        db.session.commit()
+        flash('Appointment status updated successfully!')
+    
+    return redirect(url_for('appointment_details', appointment_id=appointment_id))
+
 def check_upcoming_events():
     """Check for upcoming birthdays and anniversaries"""
     today = datetime.utcnow().date()
@@ -805,6 +1070,540 @@ def before_request():
     if current_user.is_authenticated:
         check_upcoming_events()
 
+@app.route('/finance')
+@login_required
+def finance_dashboard():
+    # Get summary statistics
+    total_income = db.session.query(db.func.sum(FinanceTransaction.amount)).\
+        filter(FinanceTransaction.transaction_type == 'income').scalar() or 0
+    total_expense = db.session.query(db.func.sum(FinanceTransaction.amount)).\
+        filter(FinanceTransaction.transaction_type == 'expense').scalar() or 0
+    current_balance = total_income - total_expense
+    
+    # Get recent transactions
+    recent_transactions = FinanceTransaction.query.\
+        order_by(FinanceTransaction.transaction_date.desc()).limit(5).all()
+    
+    # Get category summaries
+    income_by_category = db.session.query(
+        FinanceCategory.name,
+        db.func.sum(FinanceTransaction.amount)
+    ).join(FinanceTransaction).\
+        filter(FinanceTransaction.transaction_type == 'income').\
+        group_by(FinanceCategory.name).all()
+    
+    expense_by_category = db.session.query(
+        FinanceCategory.name,
+        db.func.sum(FinanceTransaction.amount)
+    ).join(FinanceTransaction).\
+        filter(FinanceTransaction.transaction_type == 'expense').\
+        group_by(FinanceCategory.name).all()
+    
+    return render_template('finance/dashboard.html',
+                         total_income=total_income,
+                         total_expense=total_expense,
+                         current_balance=current_balance,
+                         recent_transactions=recent_transactions,
+                         income_by_category=income_by_category,
+                         expense_by_category=expense_by_category)
+
+@app.route('/finance/transactions')
+@login_required
+def finance_transactions():
+    page = request.args.get('page', 1, type=int)
+    transaction_type = request.args.get('type', 'all')
+    category_id = request.args.get('category', 'all')
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+    
+    query = FinanceTransaction.query
+    
+    # Apply filters
+    if transaction_type != 'all':
+        query = query.filter_by(transaction_type=transaction_type)
+    if category_id != 'all':
+        query = query.filter_by(category_id=category_id)
+    if start_date:
+        query = query.filter(FinanceTransaction.transaction_date >= start_date)
+    if end_date:
+        query = query.filter(FinanceTransaction.transaction_date <= end_date)
+    
+    transactions = query.order_by(FinanceTransaction.transaction_date.desc()).\
+        paginate(page=page, per_page=20, error_out=False)
+    
+    categories = FinanceCategory.query.all()
+    
+    return render_template('finance/transactions.html',
+                         transactions=transactions,
+                         categories=categories)
+
+@app.route('/finance/transactions/create', methods=['GET', 'POST'])
+@login_required
+def create_transaction():
+    if request.method == 'POST':
+        category_id = request.form.get('category_id')
+        amount = float(request.form.get('amount'))
+        transaction_type = request.form.get('transaction_type')
+        payment_method = request.form.get('payment_method')
+        reference_number = request.form.get('reference_number')
+        description = request.form.get('description')
+        transaction_date = datetime.strptime(request.form.get('transaction_date'), '%Y-%m-%d').date()
+        
+        transaction = FinanceTransaction(
+            category_id=category_id,
+            amount=amount,
+            transaction_type=transaction_type,
+            payment_method=payment_method,
+            reference_number=reference_number,
+            description=description,
+            transaction_date=transaction_date,
+            recorded_by=current_user.id
+        )
+        
+        # Additional fields for offerings/tithes
+        if transaction_type == 'income':
+            transaction.service_type = request.form.get('service_type')
+            transaction.envelope_number = request.form.get('envelope_number')
+            transaction.donor_name = request.form.get('donor_name')
+            transaction.is_anonymous = bool(request.form.get('is_anonymous'))
+        
+        # Additional fields for expenses
+        if transaction_type == 'expense':
+            transaction.vendor_name = request.form.get('vendor_name')
+            transaction.receipt_number = request.form.get('receipt_number')
+        
+        try:
+            db.session.add(transaction)
+            db.session.commit()
+            flash('Transaction recorded successfully!')
+            return redirect(url_for('finance_transactions'))
+        except Exception as e:
+            db.session.rollback()
+            flash('Error recording transaction: ' + str(e))
+    
+    categories = FinanceCategory.query.all()
+    return render_template('finance/create_transaction.html', categories=categories)
+
+@app.route('/finance/reports')
+@login_required
+def finance_reports():
+    reports = FinancialReport.query.order_by(FinancialReport.generated_at.desc()).all()
+    return render_template('finance/reports.html', reports=reports)
+
+@app.route('/finance/reports/generate', methods=['GET', 'POST'])
+@login_required
+def generate_report():
+    if request.method == 'POST':
+        report_type = request.form.get('report_type')
+        start_date = datetime.strptime(request.form.get('start_date'), '%Y-%m-%d').date()
+        end_date = datetime.strptime(request.form.get('end_date'), '%Y-%m-%d').date()
+        
+        # Calculate totals
+        income = db.session.query(db.func.sum(FinanceTransaction.amount)).\
+            filter(FinanceTransaction.transaction_type == 'income',
+                   FinanceTransaction.transaction_date.between(start_date, end_date)).scalar() or 0
+        
+        expense = db.session.query(db.func.sum(FinanceTransaction.amount)).\
+            filter(FinanceTransaction.transaction_type == 'expense',
+                   FinanceTransaction.transaction_date.between(start_date, end_date)).scalar() or 0
+        
+        # Get detailed breakdown
+        breakdown = db.session.query(
+            FinanceCategory.name,
+            FinanceTransaction.transaction_type,
+            db.func.sum(FinanceTransaction.amount)
+        ).join(FinanceTransaction).\
+            filter(FinanceTransaction.transaction_date.between(start_date, end_date)).\
+            group_by(FinanceCategory.name, FinanceTransaction.transaction_type).all()
+        
+        report = FinancialReport(
+            report_type=report_type,
+            start_date=start_date,
+            end_date=end_date,
+            total_income=income,
+            total_expense=expense,
+            balance=income - expense,
+            generated_by=current_user.id,
+            report_data=json.dumps([{
+                'category': item[0],
+                'type': item[1],
+                'amount': float(item[2])
+            } for item in breakdown])
+        )
+        
+        try:
+            db.session.add(report)
+            db.session.commit()
+            flash('Report generated successfully!')
+            return redirect(url_for('finance_reports'))
+        except Exception as e:
+            db.session.rollback()
+            flash('Error generating report: ' + str(e))
+    
+    return render_template('finance/generate_report.html')
+
+@app.route('/finance/categories')
+@login_required
+def finance_categories():
+    categories = FinanceCategory.query.all()
+    return render_template('finance/categories.html', categories=categories)
+
+@app.route('/finance/categories/create', methods=['GET', 'POST'])
+@login_required
+def create_category():
+    if request.method == 'POST':
+        category = FinanceCategory(
+            name=request.form.get('name'),
+            type=request.form.get('type'),
+            description=request.form.get('description')
+        )
+        
+        try:
+            db.session.add(category)
+            db.session.commit()
+            flash('Category created successfully!')
+            return redirect(url_for('finance_categories'))
+        except Exception as e:
+            db.session.rollback()
+            flash('Error creating category: ' + str(e))
+    
+    return render_template('finance/create_category.html')
+
+@app.route('/finance/budgets')
+@login_required
+def budgets():
+    current_year = datetime.utcnow().year
+    selected_year = request.args.get('year', current_year, type=int)
+    
+    # Get annual budgets
+    annual_budgets = Budget.query.filter_by(year=selected_year, month=None).all()
+    
+    # Get monthly budgets
+    monthly_budgets = Budget.query.filter_by(year=selected_year).filter(Budget.month != None).all()
+    
+    # Calculate totals
+    total_budget = sum(budget.amount for budget in annual_budgets + monthly_budgets)
+    total_actual = sum(budget.actual_amount for budget in annual_budgets + monthly_budgets)
+    total_variance = total_actual - total_budget
+    
+    return render_template('finance/budgets.html',
+                         annual_budgets=annual_budgets,
+                         monthly_budgets=monthly_budgets,
+                         total_budget=total_budget,
+                         total_actual=total_actual,
+                         total_variance=total_variance,
+                         current_year=current_year,
+                         selected_year=selected_year)
+
+@app.route('/finance/budgets/create', methods=['GET', 'POST'])
+@login_required
+def create_budget():
+    if request.method == 'POST':
+        budget = Budget(
+            category_id=request.form.get('category_id'),
+            year=int(request.form.get('year')),
+            month=int(request.form.get('month')) if request.form.get('month') else None,
+            amount=float(request.form.get('amount')),
+            notes=request.form.get('notes'),
+            created_by=current_user.id
+        )
+        
+        try:
+            db.session.add(budget)
+            db.session.commit()
+            flash('Budget created successfully!')
+            return redirect(url_for('budgets'))
+        except Exception as e:
+            db.session.rollback()
+            flash('Error creating budget: ' + str(e))
+    
+    categories = FinanceCategory.query.all()
+    current_year = datetime.utcnow().year
+    return render_template('finance/create_budget.html', categories=categories, current_year=current_year)
+
+# Add this after creating the Flask app
+@app.template_filter('month_name')
+def month_name_filter(month_number):
+    return calendar.month_name[month_number] if month_number else ''
+
+# Teaching Service Models
+class TeachingProgram(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(200), nullable=False)
+    program_type = db.Column(db.String(50), nullable=False)  # 'sunday_school', 'youth', 'children', 'bible_study'
+    description = db.Column(db.Text)
+    age_group = db.Column(db.String(50))  # e.g., '3-5 years', '13-19 years'
+    schedule = db.Column(db.String(100))  # e.g., 'Every Sunday 9:00 AM'
+    location = db.Column(db.String(200))
+    coordinator_id = db.Column(db.Integer, db.ForeignKey('member.id'))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    status = db.Column(db.String(20), default='active')  # active, inactive
+    
+    # Relationships
+    coordinator = db.relationship('Member', backref='coordinated_programs')
+    teachers = db.relationship('TeachingTeacher', back_populates='program')
+    students = db.relationship('TeachingStudent', back_populates='program')
+
+class TeachingTeacher(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    program_id = db.Column(db.Integer, db.ForeignKey('teaching_program.id'), nullable=False)
+    teacher_id = db.Column(db.Integer, db.ForeignKey('member.id'), nullable=False)
+    role = db.Column(db.String(50))  # lead teacher, assistant, volunteer
+    start_date = db.Column(db.Date)
+    end_date = db.Column(db.Date)
+    status = db.Column(db.String(20), default='active')
+    notes = db.Column(db.Text)
+    
+    # Relationships
+    program = db.relationship('TeachingProgram', back_populates='teachers')
+    teacher = db.relationship('Member', backref='teaching_roles')
+
+class TeachingStudent(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    program_id = db.Column(db.Integer, db.ForeignKey('teaching_program.id'), nullable=False)
+    student_id = db.Column(db.Integer, db.ForeignKey('member.id'), nullable=False)
+    enrollment_date = db.Column(db.Date, default=datetime.utcnow)
+    parent_contact = db.Column(db.String(100))
+    emergency_contact = db.Column(db.String(100))
+    medical_info = db.Column(db.Text)
+    attendance_record = db.Column(db.Text)  # JSON string of attendance dates
+    status = db.Column(db.String(20), default='active')
+    notes = db.Column(db.Text)
+    
+    # Relationships
+    program = db.relationship('TeachingProgram', back_populates='students')
+    student = db.relationship('Member', backref='enrolled_programs')
+
+class TeachingMaterial(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    program_id = db.Column(db.Integer, db.ForeignKey('teaching_program.id'), nullable=False)
+    title = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text)
+    material_type = db.Column(db.String(50))  # lesson_plan, worksheet, activity, resource
+    file_path = db.Column(db.String(500))
+    created_by = db.Column(db.Integer, db.ForeignKey('user.id'))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    status = db.Column(db.String(20), default='active')
+    
+    # Relationships
+    program = db.relationship('TeachingProgram', backref='materials')
+    creator = db.relationship('User', backref='created_materials')
+
+class TeachingEvent(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    program_id = db.Column(db.Integer, db.ForeignKey('teaching_program.id'), nullable=False)
+    title = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text)
+    event_type = db.Column(db.String(50))  # class, activity, field_trip, competition
+    date = db.Column(db.Date, nullable=False)
+    time = db.Column(db.String(50))
+    location = db.Column(db.String(200))
+    coordinator_id = db.Column(db.Integer, db.ForeignKey('member.id'))
+    max_participants = db.Column(db.Integer)
+    requirements = db.Column(db.Text)
+    status = db.Column(db.String(20), default='upcoming')  # upcoming, ongoing, completed, cancelled
+    
+    # Relationships
+    program = db.relationship('TeachingProgram', backref='events')
+    coordinator = db.relationship('Member', backref='coordinated_events')
+
+@app.route('/teaching')
+@login_required
+def teaching_dashboard():
+    programs = TeachingProgram.query.all()
+    upcoming_events = TeachingEvent.query.filter(
+        TeachingEvent.date >= datetime.utcnow().date(),
+        TeachingEvent.status == 'upcoming'
+    ).order_by(TeachingEvent.date).limit(5).all()
+    
+    # Get statistics
+    total_students = TeachingStudent.query.filter_by(status='active').count()
+    total_teachers = TeachingTeacher.query.filter_by(status='active').count()
+    active_programs = TeachingProgram.query.filter_by(status='active').count()
+    
+    return render_template('teaching/dashboard.html',
+                         programs=programs,
+                         upcoming_events=upcoming_events,
+                         total_students=total_students,
+                         total_teachers=total_teachers,
+                         active_programs=active_programs)
+
+@app.route('/teaching/programs')
+@login_required
+def teaching_programs():
+    programs = TeachingProgram.query.all()
+    return render_template('teaching/programs.html', programs=programs)
+
+@app.route('/teaching/programs/create', methods=['GET', 'POST'])
+@login_required
+def create_program():
+    if request.method == 'POST':
+        program = TeachingProgram(
+            name=request.form.get('name'),
+            program_type=request.form.get('program_type'),
+            description=request.form.get('description'),
+            age_group=request.form.get('age_group'),
+            schedule=request.form.get('schedule'),
+            location=request.form.get('location'),
+            coordinator_id=request.form.get('coordinator_id')
+        )
+        
+        try:
+            db.session.add(program)
+            db.session.commit()
+            flash('Program created successfully!')
+            return redirect(url_for('teaching_programs'))
+        except Exception as e:
+            db.session.rollback()
+            flash('Error creating program: ' + str(e))
+    
+    coordinators = Member.query.all()
+    return render_template('teaching/create_program.html', coordinators=coordinators)
+
+@app.route('/teaching/teachers')
+@login_required
+def teaching_teachers():
+    teachers = TeachingTeacher.query.filter_by(status='active').all()
+    programs = TeachingProgram.query.all()
+    return render_template('teaching/teachers.html', teachers=teachers, programs=programs)
+
+@app.route('/teaching/teachers/assign', methods=['GET', 'POST'])
+@login_required
+def assign_teacher():
+    if request.method == 'POST':
+        teacher = TeachingTeacher(
+            program_id=request.form.get('program_id'),
+            teacher_id=request.form.get('teacher_id'),
+            role=request.form.get('role'),
+            start_date=datetime.strptime(request.form.get('start_date'), '%Y-%m-%d').date(),
+            end_date=datetime.strptime(request.form.get('end_date'), '%Y-%m-%d').date() if request.form.get('end_date') else None,
+            notes=request.form.get('notes')
+        )
+        
+        try:
+            db.session.add(teacher)
+            db.session.commit()
+            flash('Teacher assigned successfully!')
+            return redirect(url_for('teaching_teachers'))
+        except Exception as e:
+            db.session.rollback()
+            flash('Error assigning teacher: ' + str(e))
+    
+    programs = TeachingProgram.query.all()
+    teachers = Member.query.all()
+    return render_template('teaching/assign_teacher.html', programs=programs, teachers=teachers)
+
+@app.route('/teaching/students')
+@login_required
+def teaching_students():
+    students = TeachingStudent.query.filter_by(status='active').all()
+    programs = TeachingProgram.query.all()
+    return render_template('teaching/students.html', students=students, programs=programs)
+
+@app.route('/teaching/students/enroll', methods=['GET', 'POST'])
+@login_required
+def enroll_student():
+    if request.method == 'POST':
+        student = TeachingStudent(
+            program_id=request.form.get('program_id'),
+            student_id=request.form.get('student_id'),
+            parent_contact=request.form.get('parent_contact'),
+            emergency_contact=request.form.get('emergency_contact'),
+            medical_info=request.form.get('medical_info'),
+            notes=request.form.get('notes')
+        )
+        
+        try:
+            db.session.add(student)
+            db.session.commit()
+            flash('Student enrolled successfully!')
+            return redirect(url_for('teaching_students'))
+        except Exception as e:
+            db.session.rollback()
+            flash('Error enrolling student: ' + str(e))
+    
+    programs = TeachingProgram.query.all()
+    students = Member.query.all()
+    return render_template('teaching/enroll_student.html', programs=programs, students=students)
+
+@app.route('/teaching/materials')
+@login_required
+def teaching_materials():
+    materials = TeachingMaterial.query.order_by(TeachingMaterial.created_at.desc()).all()
+    programs = TeachingProgram.query.all()
+    return render_template('teaching/materials.html', materials=materials, programs=programs)
+
+@app.route('/teaching/materials/create', methods=['GET', 'POST'])
+@login_required
+def create_material():
+    if request.method == 'POST':
+        file = request.files.get('material_file')
+        file_path = None
+        if file and file.filename:
+            filename = secure_filename(file.filename)
+            uploads_dir = os.path.join(app.root_path, 'uploads', 'teaching')
+            if not os.path.exists(uploads_dir):
+                os.makedirs(uploads_dir)
+            file_path = os.path.join('uploads', 'teaching', filename)
+            file.save(os.path.join(app.root_path, file_path))
+        
+        material = TeachingMaterial(
+            program_id=request.form.get('program_id'),
+            title=request.form.get('title'),
+            description=request.form.get('description'),
+            material_type=request.form.get('material_type'),
+            file_path=file_path,
+            created_by=current_user.id
+        )
+        
+        try:
+            db.session.add(material)
+            db.session.commit()
+            flash('Material created successfully!')
+            return redirect(url_for('teaching_materials'))
+        except Exception as e:
+            db.session.rollback()
+            flash('Error creating material: ' + str(e))
+    
+    programs = TeachingProgram.query.all()
+    return render_template('teaching/create_material.html', programs=programs)
+
+@app.route('/teaching/events')
+@login_required
+def teaching_events():
+    events = TeachingEvent.query.order_by(TeachingEvent.date).all()
+    return render_template('teaching/events.html', events=events)
+
+@app.route('/teaching/events/create', methods=['GET', 'POST'])
+@login_required
+def create_event():
+    if request.method == 'POST':
+        event = TeachingEvent(
+            program_id=request.form.get('program_id'),
+            title=request.form.get('title'),
+            description=request.form.get('description'),
+            event_type=request.form.get('event_type'),
+            date=datetime.strptime(request.form.get('date'), '%Y-%m-%d').date(),
+            time=request.form.get('time'),
+            location=request.form.get('location'),
+            coordinator_id=request.form.get('coordinator_id'),
+            max_participants=request.form.get('max_participants'),
+            requirements=request.form.get('requirements')
+        )
+        
+        try:
+            db.session.add(event)
+            db.session.commit()
+            flash('Event created successfully!')
+            return redirect(url_for('teaching_events'))
+        except Exception as e:
+            db.session.rollback()
+            flash('Error creating event: ' + str(e))
+    
+    programs = TeachingProgram.query.all()
+    coordinators = Member.query.all()
+    return render_template('teaching/create_event.html', programs=programs, coordinators=coordinators)
+
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
@@ -814,4 +1613,4 @@ if __name__ == '__main__':
             admin = User(username='admin', password='admin123', is_admin=True)
             db.session.add(admin)
             db.session.commit()
-    app.run(debug=True, port=8080) 
+    app.run(debug=True, port=3000) 

@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h2><i class="fas fa-calendar-alt me-2"></i>Counseling & Appointments</h2>
+                <a href="{{ url_for('create_appointment') }}" class="btn btn-primary">
+                    <i class="fas fa-plus me-2"></i>Schedule Appointment
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-body">
+                    <form method="GET" class="row g-3">
+                        <div class="col-md-3">
+                            <label class="form-label">Status</label>
+                            <select name="status" class="form-select" onchange="this.form.submit()">
+                                <option value="">All Statuses</option>
+                                <option value="Pending" {% if status_filter == 'Pending' %}selected{% endif %}>Pending</option>
+                                <option value="Confirmed" {% if status_filter == 'Confirmed' %}selected{% endif %}>Confirmed</option>
+                                <option value="Completed" {% if status_filter == 'Completed' %}selected{% endif %}>Completed</option>
+                                <option value="Cancelled" {% if status_filter == 'Cancelled' %}selected{% endif %}>Cancelled</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Type</label>
+                            <select name="type" class="form-select" onchange="this.form.submit()">
+                                <option value="">All Types</option>
+                                <option value="Marriage" {% if type_filter == 'Marriage' %}selected{% endif %}>Marriage</option>
+                                <option value="Personal" {% if type_filter == 'Personal' %}selected{% endif %}>Personal</option>
+                                <option value="Family" {% if type_filter == 'Family' %}selected{% endif %}>Family</option>
+                                <option value="Spiritual" {% if type_filter == 'Spiritual' %}selected{% endif %}>Spiritual</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Date</label>
+                            <input type="date" name="date" class="form-control" value="{{ date_filter }}" onchange="this.form.submit()">
+                        </div>
+                        <div class="col-md-3 d-flex align-items-end">
+                            <button type="button" class="btn btn-outline-secondary" onclick="clearFilters()">
+                                <i class="fas fa-times me-2"></i>Clear Filters
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Appointments List -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    {% if appointments %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Date & Time</th>
+                                        <th>Member</th>
+                                        <th>Type</th>
+                                        <th>Counselor</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for appointment in appointments %}
+                                    <tr>
+                                        <td>
+                                            <strong>{{ appointment.date.strftime('%Y-%m-%d') }}</strong><br>
+                                            <small class="text-muted">{{ appointment.time }}</small>
+                                        </td>
+                                        <td>
+                                            {{ appointment.member.first_name }} {{ appointment.member.last_name }}
+                                        </td>
+                                        <td>{{ appointment.appointment_type }}</td>
+                                        <td>{{ appointment.counselor.username }}</td>
+                                        <td>
+                                            <span class="badge {% if appointment.status == 'Pending' %}bg-warning
+                                                             {% elif appointment.status == 'Confirmed' %}bg-success
+                                                             {% elif appointment.status == 'Completed' %}bg-info
+                                                             {% else %}bg-secondary{% endif %}">
+                                                {{ appointment.status }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <a href="{{ url_for('appointment_details', appointment_id=appointment.id) }}" 
+                                               class="btn btn-sm btn-outline-primary">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="fas fa-calendar-times fa-3x text-muted mb-3"></i>
+                            <h5 class="text-muted">No appointments found</h5>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function clearFilters() {
+    window.location = "{{ url_for('appointments') }}";
+}
+</script>
+{% endblock %} 

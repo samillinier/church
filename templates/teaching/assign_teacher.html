@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <h1 class="h3 mb-4">Assign Teacher to Program</h1>
+    
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-body">
+                    <form method="POST">
+                        <div class="mb-3">
+                            <label for="program_id" class="form-label">Program</label>
+                            <select class="form-control" id="program_id" name="program_id" required>
+                                <option value="">Select Program</option>
+                                {% for program in programs %}
+                                <option value="{{ program.id }}">{{ program.name }} ({{ program.program_type|replace('_', ' ')|title }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="teacher_id" class="form-label">Teacher</label>
+                            <select class="form-control" id="teacher_id" name="teacher_id" required>
+                                <option value="">Select Teacher</option>
+                                {% for teacher in teachers %}
+                                <option value="{{ teacher.id }}">{{ teacher.first_name }} {{ teacher.last_name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="role" class="form-label">Role</label>
+                            <select class="form-control" id="role" name="role" required>
+                                <option value="lead_teacher">Lead Teacher</option>
+                                <option value="assistant">Assistant Teacher</option>
+                                <option value="volunteer">Volunteer</option>
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="start_date" class="form-label">Start Date</label>
+                            <input type="date" class="form-control" id="start_date" name="start_date" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="end_date" class="form-label">End Date (Optional)</label>
+                            <input type="date" class="form-control" id="end_date" name="end_date">
+                            <small class="text-muted">Leave blank for indefinite assignment</small>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="notes" class="form-label">Notes</label>
+                            <textarea class="form-control" id="notes" name="notes" rows="3"></textarea>
+                        </div>
+                        
+                        <div class="text-end">
+                            <a href="{{ url_for('teaching_teachers') }}" class="btn btn-secondary">Cancel</a>
+                            <button type="submit" class="btn btn-primary">Assign Teacher</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Teaching Roles</h5>
+                    <ul class="list-group">
+                        <li class="list-group-item">
+                            <h6>Lead Teacher</h6>
+                            <small class="text-muted">Primary instructor responsible for curriculum and class management</small>
+                        </li>
+                        <li class="list-group-item">
+                            <h6>Assistant Teacher</h6>
+                            <small class="text-muted">Supports lead teacher and helps with class activities</small>
+                        </li>
+                        <li class="list-group-item">
+                            <h6>Volunteer</h6>
+                            <small class="text-muted">Helps with specific activities or events as needed</small>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

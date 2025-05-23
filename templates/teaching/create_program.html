@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <h1 class="h3 mb-4">Create New Teaching Program</h1>
+    
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-body">
+                    <form method="POST">
+                        <div class="mb-3">
+                            <label for="name" class="form-label">Program Name</label>
+                            <input type="text" class="form-control" id="name" name="name" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="program_type" class="form-label">Program Type</label>
+                            <select class="form-control" id="program_type" name="program_type" required>
+                                <option value="sunday_school">Sunday School</option>
+                                <option value="youth">Youth Ministry</option>
+                                <option value="children">Children's Ministry</option>
+                                <option value="bible_study">Bible Study</option>
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="description" class="form-label">Description</label>
+                            <textarea class="form-control" id="description" name="description" rows="3"></textarea>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="age_group" class="form-label">Age Group</label>
+                            <input type="text" class="form-control" id="age_group" name="age_group" placeholder="e.g., 3-5 years">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="schedule" class="form-label">Schedule</label>
+                            <input type="text" class="form-control" id="schedule" name="schedule" placeholder="e.g., Every Sunday 9:00 AM">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="location" class="form-label">Location</label>
+                            <input type="text" class="form-control" id="location" name="location">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="coordinator_id" class="form-label">Program Coordinator</label>
+                            <select class="form-control" id="coordinator_id" name="coordinator_id" required>
+                                <option value="">Select Coordinator</option>
+                                {% for coordinator in coordinators %}
+                                <option value="{{ coordinator.id }}">{{ coordinator.first_name }} {{ coordinator.last_name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="text-end">
+                            <a href="{{ url_for('teaching_programs') }}" class="btn btn-secondary">Cancel</a>
+                            <button type="submit" class="btn btn-primary">Create Program</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Program Types</h5>
+                    <ul class="list-group">
+                        <li class="list-group-item">
+                            <h6>Sunday School</h6>
+                            <small class="text-muted">Biblical education for all age groups</small>
+                        </li>
+                        <li class="list-group-item">
+                            <h6>Youth Ministry</h6>
+                            <small class="text-muted">Programs for teenagers and young adults</small>
+                        </li>
+                        <li class="list-group-item">
+                            <h6>Children's Ministry</h6>
+                            <small class="text-muted">Activities and lessons for children</small>
+                        </li>
+                        <li class="list-group-item">
+                            <h6>Bible Study</h6>
+                            <small class="text-muted">In-depth scripture study groups</small>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

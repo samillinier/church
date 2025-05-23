@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="text-center mb-0">
+                        <i class="fas fa-plus-circle me-2"></i>Create New Budget
+                    </h3>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        <div class="mb-4">
+                            <label for="category_id" class="form-label">Category</label>
+                            <select class="form-select" name="category_id" id="category_id" required>
+                                <option value="">Select Category</option>
+                                {% for category in categories %}
+                                <option value="{{ category.id }}">{{ category.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="mb-4">
+                            <label for="budget_type" class="form-label">Budget Type</label>
+                            <select class="form-select" name="budget_type" id="budget_type" required onchange="toggleMonthField()">
+                                <option value="">Select Type</option>
+                                <option value="annual">Annual Budget</option>
+                                <option value="monthly">Monthly Budget</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-4">
+                            <label for="year" class="form-label">Year</label>
+                            <select class="form-select" name="year" id="year" required>
+                                {% for y in range(current_year - 1, current_year + 2) %}
+                                <option value="{{ y }}" {% if y == current_year %}selected{% endif %}>
+                                    {{ y }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="mb-4" id="month_field" style="display: none;">
+                            <label for="month" class="form-label">Month</label>
+                            <select class="form-select" name="month" id="month">
+                                <option value="">Select Month</option>
+                                <option value="1">January</option>
+                                <option value="2">February</option>
+                                <option value="3">March</option>
+                                <option value="4">April</option>
+                                <option value="5">May</option>
+                                <option value="6">June</option>
+                                <option value="7">July</option>
+                                <option value="8">August</option>
+                                <option value="9">September</option>
+                                <option value="10">October</option>
+                                <option value="11">November</option>
+                                <option value="12">December</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-4">
+                            <label for="amount" class="form-label">Budget Amount (₦)</label>
+                            <input type="number" class="form-control" name="amount" id="amount" step="0.01" required>
+                        </div>
+
+                        <div class="mb-4">
+                            <label for="notes" class="form-label">Notes</label>
+                            <textarea class="form-control" name="notes" id="notes" rows="3"></textarea>
+                            <small class="text-muted">Add any additional notes or comments about this budget.</small>
+                        </div>
+
+                        <div class="text-center">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-save me-2"></i>Create Budget
+                            </button>
+                            <a href="{{ url_for('budgets') }}" class="btn btn-secondary btn-lg ms-2">
+                                <i class="fas fa-times me-2"></i>Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function toggleMonthField() {
+    const budgetType = document.getElementById('budget_type').value;
+    const monthField = document.getElementById('month_field');
+    const monthSelect = document.getElementById('month');
+    
+    if (budgetType === 'monthly') {
+        monthField.style.display = 'block';
+        monthSelect.required = true;
+    } else {
+        monthField.style.display = 'none';
+        monthSelect.required = false;
+        monthSelect.value = '';
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    toggleMonthField();
+});
+</script>
+{% endblock %} 

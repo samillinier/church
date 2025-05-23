@@ -25,21 +25,25 @@ venv/
 env/
 ENV/
 
-# Database
-*.db
-*.sqlite3
-
 # IDE
 .idea/
 .vscode/
 *.swp
 *.swo
 
-# OS
+# SQLite Database
+*.db
+*.sqlite3
+
+# Logs
+*.log
+
+# Environment variables
+.env
+
+# Uploads directory
+uploads/
+
+# System Files
 .DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
 Thumbs.db 

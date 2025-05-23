@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="text-center mb-0">
+                        <i class="fas fa-plus-circle me-2"></i>Record Transaction
+                    </h3>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        <!-- Transaction Type -->
+                        <div class="mb-4">
+                            <label for="transaction_type" class="form-label">Transaction Type</label>
+                            <select class="form-select" name="transaction_type" id="transaction_type" required onchange="toggleFields()">
+                                <option value="">Select Type</option>
+                                <option value="income">Income</option>
+                                <option value="expense">Expense</option>
+                            </select>
+                        </div>
+
+                        <!-- Category -->
+                        <div class="mb-4">
+                            <label for="category_id" class="form-label">Category</label>
+                            <select class="form-select" name="category_id" id="category_id" required>
+                                <option value="">Select Category</option>
+                                {% for category in categories %}
+                                <option value="{{ category.id }}" data-type="{{ category.type }}">
+                                    {{ category.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- Amount -->
+                        <div class="mb-4">
+                            <label for="amount" class="form-label">Amount (₦)</label>
+                            <input type="number" class="form-control" name="amount" id="amount" step="0.01" required>
+                        </div>
+
+                        <!-- Payment Method -->
+                        <div class="mb-4">
+                            <label for="payment_method" class="form-label">Payment Method</label>
+                            <select class="form-select" name="payment_method" id="payment_method" required>
+                                <option value="">Select Method</option>
+                                <option value="cash">Cash</option>
+                                <option value="check">Check</option>
+                                <option value="bank_transfer">Bank Transfer</option>
+                                <option value="pos">POS</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+
+                        <!-- Reference Number -->
+                        <div class="mb-4">
+                            <label for="reference_number" class="form-label">Reference Number</label>
+                            <input type="text" class="form-control" name="reference_number" id="reference_number">
+                            <small class="text-muted">Check number, transfer reference, etc.</small>
+                        </div>
+
+                        <!-- Transaction Date -->
+                        <div class="mb-4">
+                            <label for="transaction_date" class="form-label">Transaction Date</label>
+                            <input type="date" class="form-control" name="transaction_date" id="transaction_date" required>
+                        </div>
+
+                        <!-- Description -->
+                        <div class="mb-4">
+                            <label for="description" class="form-label">Description</label>
+                            <textarea class="form-control" name="description" id="description" rows="2" required></textarea>
+                        </div>
+
+                        <!-- Income-specific fields -->
+                        <div id="income-fields" style="display: none;">
+                            <div class="mb-4">
+                                <label for="service_type" class="form-label">Service Type</label>
+                                <select class="form-select" name="service_type" id="service_type">
+                                    <option value="">Select Service</option>
+                                    <option value="Sunday Service">Sunday Service</option>
+                                    <option value="Midweek Service">Midweek Service</option>
+                                    <option value="Special Event">Special Event</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+
+                            <div class="mb-4">
+                                <label for="envelope_number" class="form-label">Envelope Number</label>
+                                <input type="text" class="form-control" name="envelope_number" id="envelope_number">
+                            </div>
+
+                            <div class="mb-4">
+                                <label for="donor_name" class="form-label">Donor Name</label>
+                                <input type="text" class="form-control" name="donor_name" id="donor_name">
+                            </div>
+
+                            <div class="mb-4 form-check">
+                                <input type="checkbox" class="form-check-input" name="is_anonymous" id="is_anonymous">
+                                <label class="form-check-label" for="is_anonymous">Anonymous Donation</label>
+                            </div>
+                        </div>
+
+                        <!-- Expense-specific fields -->
+                        <div id="expense-fields" style="display: none;">
+                            <div class="mb-4">
+                                <label for="vendor_name" class="form-label">Vendor/Payee Name</label>
+                                <input type="text" class="form-control" name="vendor_name" id="vendor_name">
+                            </div>
+
+                            <div class="mb-4">
+                                <label for="receipt_number" class="form-label">Receipt Number</label>
+                                <input type="text" class="form-control" name="receipt_number" id="receipt_number">
+                            </div>
+                        </div>
+
+                        <!-- Notes -->
+                        <div class="mb-4">
+                            <label for="notes" class="form-label">Additional Notes</label>
+                            <textarea class="form-control" name="notes" id="notes" rows="2"></textarea>
+                        </div>
+
+                        <div class="text-center">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-save me-2"></i>Record Transaction
+                            </button>
+                            <a href="{{ url_for('finance_transactions') }}" class="btn btn-secondary btn-lg ms-2">
+                                <i class="fas fa-times me-2"></i>Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function toggleFields() {
+    const transactionType = document.getElementById('transaction_type').value;
+    const incomeFields = document.getElementById('income-fields');
+    const expenseFields = document.getElementById('expense-fields');
+    
+    if (transactionType === 'income') {
+        incomeFields.style.display = 'block';
+        expenseFields.style.display = 'none';
+    } else if (transactionType === 'expense') {
+        incomeFields.style.display = 'none';
+        expenseFields.style.display = 'block';
+    } else {
+        incomeFields.style.display = 'none';
+        expenseFields.style.display = 'none';
+    }
+
+    // Filter categories based on transaction type
+    const categorySelect = document.getElementById('category_id');
+    const options = categorySelect.options;
+    
+    for (let i = 1; i < options.length; i++) {
+        const option = options[i];
+        const categoryType = option.getAttribute('data-type');
+        
+        if (transactionType === '') {
+            option.style.display = 'block';
+        } else {
+            option.style.display = (categoryType === transactionType) ? 'block' : 'none';
+        }
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Set default date to today
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('transaction_date').value = today;
+    
+    // Initialize fields visibility
+    toggleFields();
+});
+</script>
+{% endblock %} 

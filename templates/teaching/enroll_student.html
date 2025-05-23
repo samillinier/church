@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <h1 class="h3 mb-4">Enroll Student in Program</h1>
+    
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-body">
+                    <form method="POST">
+                        <div class="mb-3">
+                            <label for="program_id" class="form-label">Program</label>
+                            <select class="form-control" id="program_id" name="program_id" required>
+                                <option value="">Select Program</option>
+                                {% for program in programs %}
+                                <option value="{{ program.id }}">{{ program.name }} ({{ program.age_group }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="student_id" class="form-label">Student</label>
+                            <select class="form-control" id="student_id" name="student_id" required>
+                                <option value="">Select Student</option>
+                                {% for student in students %}
+                                <option value="{{ student.id }}">{{ student.first_name }} {{ student.last_name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="parent_contact" class="form-label">Parent/Guardian Contact</label>
+                            <input type="text" class="form-control" id="parent_contact" name="parent_contact" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="emergency_contact" class="form-label">Emergency Contact</label>
+                            <input type="text" class="form-control" id="emergency_contact" name="emergency_contact" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="medical_info" class="form-label">Medical Information</label>
+                            <textarea class="form-control" id="medical_info" name="medical_info" rows="3" placeholder="Allergies, medications, or other medical conditions"></textarea>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="notes" class="form-label">Additional Notes</label>
+                            <textarea class="form-control" id="notes" name="notes" rows="3"></textarea>
+                        </div>
+                        
+                        <div class="text-end">
+                            <a href="{{ url_for('teaching_students') }}" class="btn btn-secondary">Cancel</a>
+                            <button type="submit" class="btn btn-primary">Enroll Student</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">Program Information</h5>
+                    <div id="program-info">
+                        <p class="text-muted">Select a program to view details</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Enrollment Guidelines</h5>
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item">
+                            <i class="fas fa-info-circle text-primary me-2"></i>
+                            Ensure student meets age requirements
+                        </li>
+                        <li class="list-group-item">
+                            <i class="fas fa-info-circle text-primary me-2"></i>
+                            Provide accurate contact information
+                        </li>
+                        <li class="list-group-item">
+                            <i class="fas fa-info-circle text-primary me-2"></i>
+                            Include all relevant medical information
+                        </li>
+                        <li class="list-group-item">
+                            <i class="fas fa-info-circle text-primary me-2"></i>
+                            Review program schedule and requirements
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block scripts %}
+<script>
+document.getElementById('program_id').addEventListener('change', function() {
+    const programId = this.value;
+    const programInfo = document.getElementById('program-info');
+    
+    if (!programId) {
+        programInfo.innerHTML = '<p class="text-muted">Select a program to view details</p>';
+        return;
+    }
+    
+    const selectedProgram = Array.from(this.options).find(option => option.value === programId);
+    const programDetails = selectedProgram.textContent;
+    
+    programInfo.innerHTML = `
+        <h6>${programDetails}</h6>
+        <p><strong>Schedule:</strong> <span class="text-muted">${selectedProgram.dataset.schedule || 'Not specified'}</span></p>
+        <p><strong>Location:</strong> <span class="text-muted">${selectedProgram.dataset.location || 'Not specified'}</span></p>
+    `;
+});
+</script>
+{% endblock %}
+{% endblock %} 

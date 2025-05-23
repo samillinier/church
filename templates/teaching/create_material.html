@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <h1 class="h3 mb-4">Add Teaching Material</h1>
+    
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-body">
+                    <form method="POST" enctype="multipart/form-data">
+                        <div class="mb-3">
+                            <label for="program_id" class="form-label">Program</label>
+                            <select class="form-control" id="program_id" name="program_id" required>
+                                <option value="">Select Program</option>
+                                {% for program in programs %}
+                                <option value="{{ program.id }}">{{ program.name }} ({{ program.program_type|replace('_', ' ')|title }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="title" class="form-label">Title</label>
+                            <input type="text" class="form-control" id="title" name="title" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="description" class="form-label">Description</label>
+                            <textarea class="form-control" id="description" name="description" rows="3"></textarea>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="material_type" class="form-label">Material Type</label>
+                            <select class="form-control" id="material_type" name="material_type" required>
+                                <option value="lesson_plan">Lesson Plan</option>
+                                <option value="worksheet">Worksheet</option>
+                                <option value="activity">Activity</option>
+                                <option value="resource">Resource</option>
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="material_file" class="form-label">Upload File</label>
+                            <input type="file" class="form-control" id="material_file" name="material_file">
+                            <small class="text-muted">Supported formats: PDF, DOC, DOCX, PPT, PPTX, XLS, XLSX</small>
+                        </div>
+                        
+                        <div class="text-end">
+                            <a href="{{ url_for('teaching_materials') }}" class="btn btn-secondary">Cancel</a>
+                            <button type="submit" class="btn btn-primary">Upload Material</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">Material Types</h5>
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item">
+                            <h6>Lesson Plan</h6>
+                            <small class="text-muted">Detailed teaching plans and curriculum guides</small>
+                        </li>
+                        <li class="list-group-item">
+                            <h6>Worksheet</h6>
+                            <small class="text-muted">Practice exercises and assignments for students</small>
+                        </li>
+                        <li class="list-group-item">
+                            <h6>Activity</h6>
+                            <small class="text-muted">Interactive learning activities and games</small>
+                        </li>
+                        <li class="list-group-item">
+                            <h6>Resource</h6>
+                            <small class="text-muted">Reference materials and supplementary resources</small>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Guidelines</h5>
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item">
+                            <i class="fas fa-info-circle text-primary me-2"></i>
+                            Ensure materials are age-appropriate
+                        </li>
+                        <li class="list-group-item">
+                            <i class="fas fa-info-circle text-primary me-2"></i>
+                            Include clear instructions
+                        </li>
+                        <li class="list-group-item">
+                            <i class="fas fa-info-circle text-primary me-2"></i>
+                            Keep file sizes under 10MB
+                        </li>
+                        <li class="list-group-item">
+                            <i class="fas fa-info-circle text-primary me-2"></i>
+                            Use standard file formats
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <h1 class="h3 mb-4">Teaching Service Dashboard</h1>
+    
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Active Programs</h5>
+                    <h2 class="card-text">{{ active_programs }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Active Teachers</h5>
+                    <h2 class="card-text">{{ total_teachers }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Enrolled Students</h5>
+                    <h2 class="card-text">{{ total_students }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Upcoming Events</h5>
+                    <h2 class="card-text">{{ upcoming_events|length }}</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Quick Actions</h5>
+                    <div class="btn-group">
+                        <a href="{{ url_for('create_program') }}" class="btn btn-primary">New Program</a>
+                        <a href="{{ url_for('assign_teacher') }}" class="btn btn-success">Assign Teacher</a>
+                        <a href="{{ url_for('enroll_student') }}" class="btn btn-info">Enroll Student</a>
+                        <a href="{{ url_for('create_event') }}" class="btn btn-warning">Create Event</a>
+                        <a href="{{ url_for('create_material') }}" class="btn btn-secondary">Add Material</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Programs List -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Active Programs</h5>
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Program Name</th>
+                                    <th>Type</th>
+                                    <th>Age Group</th>
+                                    <th>Schedule</th>
+                                    <th>Location</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for program in programs %}
+                                <tr>
+                                    <td>{{ program.name }}</td>
+                                    <td>{{ program.program_type }}</td>
+                                    <td>{{ program.age_group }}</td>
+                                    <td>{{ program.schedule }}</td>
+                                    <td>{{ program.location }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Upcoming Events -->
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Upcoming Events</h5>
+                    <div class="list-group">
+                        {% for event in upcoming_events %}
+                        <div class="list-group-item">
+                            <h6 class="mb-1">{{ event.title }}</h6>
+                            <p class="mb-1">{{ event.description }}</p>
+                            <small>
+                                <i class="fas fa-calendar"></i> {{ event.date.strftime('%B %d, %Y') }}
+                                <i class="fas fa-clock ml-2"></i> {{ event.time }}
+                            </small>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="text-center mb-0">
+                        <i class="fas fa-calendar-plus me-2"></i>Schedule New Appointment
+                    </h3>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        <div class="mb-4">
+                            <label for="member-search" class="form-label">Member Name</label>
+                            <input type="text" class="form-control" id="member-search" placeholder="Start typing member's name..." required>
+                            <input type="hidden" name="member_id" id="member_id" required>
+                            <div id="member-search-results" class="list-group mt-2"></div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label for="counselor_id" class="form-label">Counselor</label>
+                            <select class="form-select" name="counselor_id" id="counselor_id" required>
+                                <option value="">Select Counselor</option>
+                                {% for counselor in counselors %}
+                                <option value="{{ counselor.id }}">{{ counselor.username }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="mb-4">
+                            <label for="appointment_type" class="form-label">Appointment Type</label>
+                            <select class="form-select" name="appointment_type" id="appointment_type" required>
+                                <option value="">Select Type</option>
+                                <option value="Marriage">Marriage Counseling</option>
+                                <option value="Personal">Personal Counseling</option>
+                                <option value="Family">Family Counseling</option>
+                                <option value="Spiritual">Spiritual Guidance</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <label for="date" class="form-label">Date</label>
+                                <input type="date" class="form-control" name="date" id="date" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="time" class="form-label">Time</label>
+                                <input type="time" class="form-control" name="time" id="time" required>
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label for="duration" class="form-label">Duration (minutes)</label>
+                            <select class="form-select" name="duration" id="duration" required>
+                                <option value="30">30 minutes</option>
+                                <option value="60" selected>1 hour</option>
+                                <option value="90">1.5 hours</option>
+                                <option value="120">2 hours</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-4">
+                            <label for="reason" class="form-label">Reason for Appointment</label>
+                            <textarea class="form-control" name="reason" id="reason" rows="3" required></textarea>
+                        </div>
+
+                        <div class="mb-4">
+                            <label for="notes" class="form-label">Additional Notes</label>
+                            <textarea class="form-control" name="notes" id="notes" rows="3"></textarea>
+                        </div>
+
+                        <div class="text-center">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-calendar-check me-2"></i>Schedule Appointment
+                            </button>
+                            <a href="{{ url_for('appointments') }}" class="btn btn-secondary btn-lg ms-2">
+                                <i class="fas fa-times me-2"></i>Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const memberSearch = document.getElementById('member-search');
+    const memberIdInput = document.getElementById('member_id');
+    const searchResults = document.getElementById('member-search-results');
+    let debounceTimeout;
+
+    memberSearch.addEventListener('input', function() {
+        clearTimeout(debounceTimeout);
+        debounceTimeout = setTimeout(() => {
+            const query = this.value.trim();
+            if (query.length < 2) {
+                searchResults.innerHTML = '';
+                return;
+            }
+
+            fetch(`/api/search_members?q=${encodeURIComponent(query)}`)
+                .then(response => response.json())
+                .then(data => {
+                    searchResults.innerHTML = '';
+                    data.forEach(member => {
+                        const div = document.createElement('div');
+                        div.className = 'list-group-item list-group-item-action';
+                        div.innerHTML = `<strong>${member.name}</strong><br><small>${member.email}</small>`;
+                        div.addEventListener('click', () => {
+                            memberSearch.value = member.name;
+                            memberIdInput.value = member.id;
+                            searchResults.innerHTML = '';
+                        });
+                        searchResults.appendChild(div);
+                    });
+                });
+        }, 300);
+    });
+
+    // Set minimum date to today
+    const dateInput = document.getElementById('date');
+    const today = new Date().toISOString().split('T')[0];
+    dateInput.min = today;
+});
+</script>
+{% endblock %} 
