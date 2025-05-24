@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, abort
+from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from datetime import datetime, timedelta
@@ -10,6 +10,7 @@ import calendar
 from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
 import pytz
+import time
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-here'
@@ -40,7 +41,11 @@ ROLE_PERMISSIONS = {
         'view_analytics',
         'manage_appointments',
         'approve_transactions',
-        'view_financial_reports'
+        'view_financial_reports',
+        'record_transactions',  # Added
+        'manage_budgets',       # Added
+        'view_budgets',        # Added
+        'manage_categories'     # Added
     ],
     'finance_admin': [
         'manage_finances',
@@ -48,7 +53,10 @@ ROLE_PERMISSIONS = {
         'view_financial_reports',
         'manage_budgets',
         'view_analytics',
-        'create_documents'
+        'create_documents',
+        'record_transactions',
+        'view_budgets',
+        'manage_categories'
     ],
     'finance_officer': [
         'record_transactions',
@@ -99,18 +107,26 @@ def requires_permission(permission):
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
-    email = db.Column(db.String(120), unique=True, nullable=True)
-    password = db.Column(db.String(120), nullable=False)
-    role = db.Column(db.String(20), default='user')  # 'admin', 'coordinator', 'teacher', 'user'
-    is_active = db.Column(db.Boolean, default=True)
+    email = db.Column(db.String(120), unique=True, nullable=False)
+    password_hash = db.Column(db.String(128))
+    first_name = db.Column(db.String(50))
+    last_name = db.Column(db.String(50))
+    phone = db.Column(db.String(20))
+    address = db.Column(db.Text)
+    profile_picture = db.Column(db.String(200))
+    role = db.Column(db.String(20), default='user')
+    is_admin = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
     last_login = db.Column(db.DateTime)
-    timezone = db.Column(db.String(50), default='UTC')
     
-    # Notification preferences
-    email_new_members = db.Column(db.Boolean, default=True)
-    email_appointments = db.Column(db.Boolean, default=True)
-    notify_cell_teams = db.Column(db.Boolean, default=True)
-    notify_documents = db.Column(db.Boolean, default=True)
+    def set_password(self, password):
+        self.password_hash = generate_password_hash(password)
+        
+    def check_password(self, password):
+        return check_password_hash(self.password_hash, password)
+        
+    def get_id(self):
+        return str(self.id)
 
 class CellTeam(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -143,8 +159,6 @@ class Member(db.Model):
     emergency_contact_phone = db.Column(db.String(20))
     address = db.Column(db.String(200))
     city = db.Column(db.String(100))
-    state = db.Column(db.String(100))
-    postal_code = db.Column(db.String(20))
     date_joined = db.Column(db.DateTime, default=datetime.utcnow)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     membership_status = db.Column(db.String(50), default='Active')
@@ -152,6 +166,7 @@ class Member(db.Model):
     baptism_date = db.Column(db.Date)
     previous_church = db.Column(db.String(200))
     ministry = db.Column(db.String(100))
+    ministry_start_date = db.Column(db.Date)  # New field for ministry start date
     spiritual_gifts = db.Column(db.String(200))
     leadership_roles = db.Column(db.String(200))
     family_members = db.Column(db.String(500))
@@ -332,7 +347,7 @@ def login():
         password = request.form.get('password')
         user = User.query.filter_by(username=username).first()
         
-        if user and check_password_hash(user.password, password):
+        if user and user.check_password(password):
             login_user(user)
             user.last_login = datetime.now(pytz.UTC)
             db.session.commit()
@@ -391,8 +406,6 @@ def register():
         emergency_contact_phone = request.form.get('emergency_contact_phone')
         address = request.form.get('address')
         city = request.form.get('city')
-        state = request.form.get('state')
-        postal_code = request.form.get('postal_code')
         
         # Get church-related information
         membership_status = request.form.get('membership_status')
@@ -400,6 +413,7 @@ def register():
         baptism_date = datetime.strptime(request.form.get('baptism_date'), '%Y-%m-%d').date() if request.form.get('baptism_date') else None
         previous_church = request.form.get('previous_church')
         ministry = request.form.get('ministry')
+        ministry_start_date = datetime.strptime(request.form.get('ministry_start_date'), '%Y-%m-%d').date() if request.form.get('ministry_start_date') else None
         spiritual_gifts = request.form.get('spiritual_gifts')
         leadership_roles = request.form.get('leadership_roles')
         family_members = request.form.get('family_members')
@@ -421,13 +435,12 @@ def register():
             emergency_contact_phone=emergency_contact_phone,
             address=address,
             city=city,
-            state=state,
-            postal_code=postal_code,
             membership_status=membership_status,
             baptism_status=baptism_status,
             baptism_date=baptism_date,
             previous_church=previous_church,
             ministry=ministry,
+            ministry_start_date=ministry_start_date,
             spiritual_gifts=spiritual_gifts,
             leadership_roles=leadership_roles,
             family_members=family_members,
@@ -501,8 +514,6 @@ def edit_member(member_id):
         member.emergency_contact_phone = request.form.get('emergency_contact_phone')
         member.address = request.form.get('address')
         member.city = request.form.get('city')
-        member.state = request.form.get('state')
-        member.postal_code = request.form.get('postal_code')
         member.membership_status = request.form.get('membership_status')
         member.baptism_status = request.form.get('baptism_status') == 'yes'
         member.baptism_date = datetime.strptime(request.form.get('baptism_date'), '%Y-%m-%d').date() if request.form.get('baptism_date') else None
@@ -955,8 +966,11 @@ def search_members():
     
     return jsonify([{
         'id': member.id,
-        'name': f"{member.first_name} {member.last_name}",
-        'email': member.email
+        'first_name': member.first_name,
+        'last_name': member.last_name,
+        'email': member.email,
+        'phone': member.phone or '',
+        'membership_status': member.membership_status
     } for member in members])
 
 @app.route('/marriages/create', methods=['GET', 'POST'])
@@ -1478,7 +1492,7 @@ def finance_transactions():
 @app.route('/finance/transactions/create', methods=['GET', 'POST'])
 @login_required
 @requires_permission('record_transactions')
-def create_transaction():
+def finance_transactions_create():
     if request.method == 'POST':
         category_id = request.form.get('category_id')
         amount = float(request.form.get('amount'))
@@ -1572,7 +1586,7 @@ def finance_reports():
 @app.route('/finance/reports/generate', methods=['GET', 'POST'])
 @login_required
 @requires_permission('view_financial_reports')
-def generate_report():
+def finance_reports_generate():
     if request.method == 'POST':
         report_type = request.form.get('report_type')
         start_date = datetime.strptime(request.form.get('start_date'), '%Y-%m-%d').date()
@@ -1675,6 +1689,27 @@ def create_budget():
     categories = FinanceCategory.query.all()
     current_year = datetime.utcnow().year
     return render_template('finance/create_budget.html', categories=categories, current_year=current_year)
+
+@app.route('/finance/budgets/<int:budget_id>/edit', methods=['GET', 'POST'])
+@login_required
+@requires_permission('manage_budgets')
+def edit_budget(budget_id):
+    budget = Budget.query.get_or_404(budget_id)
+    
+    if request.method == 'POST':
+        try:
+            budget.amount = float(request.form.get('amount'))
+            budget.notes = request.form.get('notes')
+            budget.updated_at = datetime.utcnow()
+            
+            db.session.commit()
+            flash('Budget updated successfully!')
+            return redirect(url_for('budgets'))
+        except Exception as e:
+            db.session.rollback()
+            flash('Error updating budget: ' + str(e))
+    
+    return redirect(url_for('budgets'))
 
 # Add this after creating the Flask app
 @app.template_filter('month_name')
@@ -1926,10 +1961,24 @@ def enroll_student():
     if request.method == 'POST':
         program = TeachingProgram.query.get(request.form.get('program_id'))
         student = Member.query.get(request.form.get('student_id'))
+        parent = Member.query.get(request.form.get('parent_id'))
+        
+        if not program:
+            flash('Selected program not found', 'error')
+            return redirect(url_for('enroll_student'))
+            
+        if not student:
+            flash('Selected student not found', 'error')
+            return redirect(url_for('enroll_student'))
+            
+        if not parent:
+            flash('Selected parent/guardian not found', 'error')
+            return redirect(url_for('enroll_student'))
+            
         enrollment = TeachingStudent(
             program_id=program.id,
             student_id=student.id,
-            parent_contact=request.form.get('parent_contact'),
+            parent_contact=f"{parent.first_name} {parent.last_name} ({parent.phone})" if parent.phone else f"{parent.first_name} {parent.last_name} ({parent.email})",
             emergency_contact=request.form.get('emergency_contact'),
             medical_info=request.form.get('medical_info'),
             notes=request.form.get('notes')
@@ -1988,8 +2037,7 @@ def enroll_student():
             flash('Error enrolling student: ' + str(e))
     
     programs = TeachingProgram.query.all()
-    students = Member.query.all()
-    return render_template('teaching/enroll_student.html', programs=programs, students=students)
+    return render_template('teaching/enroll_student.html', programs=programs)
 
 @app.route('/teaching/materials')
 @login_required
@@ -2125,34 +2173,45 @@ def profile():
 @login_required
 def edit_profile():
     if request.method == 'POST':
-        username = request.form.get('username')
-        email = request.form.get('email')
-        role = request.form.get('role')
-        
-        # Check if username already exists
-        if username != current_user.username:
-            existing_user = User.query.filter_by(username=username).first()
-            if existing_user:
-                flash('Username already exists. Please choose another one.', 'error')
-                return redirect(url_for('edit_profile'))
-        
         try:
-            current_user.username = username
-            current_user.email = email
-            current_user.role = role
-            # Update is_admin based on role
-            current_user.is_admin = (role == 'admin')
+            # Update user information
+            current_user.first_name = request.form.get('first_name')
+            current_user.last_name = request.form.get('last_name')
+            current_user.email = request.form.get('email')
+            current_user.phone = request.form.get('phone')
+            current_user.address = request.form.get('address')
+            
+            # Handle role change (only for admin users)
+            if current_user.role == 'admin' and request.form.get('role'):
+                current_user.role = request.form.get('role')
+            
+            # Handle profile picture upload
+            if 'profile_picture' in request.files:
+                file = request.files['profile_picture']
+                if file and file.filename:
+                    # Create uploads directory if it doesn't exist
+                    if not os.path.exists('static/uploads'):
+                        os.makedirs('static/uploads')
+                    
+                    # Generate unique filename
+                    filename = secure_filename(file.filename)
+                    unique_filename = f"{current_user.id}_{int(time.time())}_{filename}"
+                    file_path = os.path.join('static/uploads', unique_filename)
+                    
+                    # Save the file
+                    file.save(file_path)
+                    current_user.profile_picture = f"/static/uploads/{unique_filename}"
             
             db.session.commit()
             flash('Profile updated successfully!', 'success')
             return redirect(url_for('profile'))
+            
         except Exception as e:
             db.session.rollback()
-            flash('Error updating profile: ' + str(e), 'error')
-    
-    # Get available roles
-    roles = ['admin', 'coordinator', 'teacher', 'user']
-    return render_template('edit_profile.html', roles=roles)
+            flash('Error updating profile. Please try again.', 'error')
+            print(f"Error updating profile: {str(e)}")
+            
+    return render_template('edit_profile.html')
 
 @app.route('/profile/change-password', methods=['GET', 'POST'])
 @login_required
@@ -2163,7 +2222,7 @@ def change_password():
         confirm_password = request.form.get('confirm_password')
         
         # Verify current password
-        if not check_password_hash(current_user.password, current_password):
+        if not current_user.check_password(current_password):
             flash('Current password is incorrect.', 'error')
             return redirect(url_for('change_password'))
         
@@ -2173,7 +2232,7 @@ def change_password():
             return redirect(url_for('change_password'))
         
         try:
-            current_user.password = generate_password_hash(new_password)
+            current_user.set_password(new_password)
             db.session.commit()
             flash('Password changed successfully!', 'success')
             return redirect(url_for('profile'))
@@ -2320,6 +2379,27 @@ def create_category():
     
     return render_template('finance/create_category.html')
 
+@app.route('/finance/categories/<int:category_id>/edit', methods=['GET', 'POST'])
+@login_required
+@requires_permission('manage_finances')
+def edit_category(category_id):
+    category = FinanceCategory.query.get_or_404(category_id)
+    
+    if request.method == 'POST':
+        category.name = request.form.get('name')
+        category.type = request.form.get('type')
+        category.description = request.form.get('description')
+        
+        try:
+            db.session.commit()
+            flash('Category updated successfully!')
+            return redirect(url_for('finance_categories'))
+        except Exception as e:
+            db.session.rollback()
+            flash('Error updating category: ' + str(e))
+            
+    return render_template('finance/edit_category.html', category=category)
+
 def init_db():
     try:
         # Drop all tables
@@ -2337,27 +2417,19 @@ def init_db():
         users = [
             {
                 'username': 'admin',
-                'password': generate_password_hash('admin123'),
-                'role': 'admin',
                 'email': 'admin@example.com',
-                'is_active': True,
-                'timezone': 'UTC'
+                'role': 'admin',
+                'is_admin': True
             },
             {
                 'username': 'finance_admin',
-                'password': generate_password_hash('finance123'),
-                'role': 'finance_admin',
                 'email': 'finance.admin@example.com',
-                'is_active': True,
-                'timezone': 'UTC'
+                'role': 'finance_admin'
             },
             {
                 'username': 'finance_officer',
-                'password': generate_password_hash('finance123'),
-                'role': 'finance_officer',
                 'email': 'finance.officer@example.com',
-                'is_active': True,
-                'timezone': 'UTC'
+                'role': 'finance_officer'
             }
         ]
         
@@ -2365,6 +2437,10 @@ def init_db():
             user = User.query.filter_by(username=user_data['username']).first()
             if not user:
                 user = User(**user_data)
+                if user_data['username'] == 'admin':
+                    user.set_password('admin123')
+                else:
+                    user.set_password('finance123')
                 db.session.add(user)
                 print(f"Created user: {user_data['username']}")
         

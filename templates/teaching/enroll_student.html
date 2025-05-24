@@ -14,24 +14,39 @@
                             <select class="form-control" id="program_id" name="program_id" required>
                                 <option value="">Select Program</option>
                                 {% for program in programs %}
-                                <option value="{{ program.id }}">{{ program.name }} ({{ program.age_group }})</option>
+                                <option value="{{ program.id }}" 
+                                        data-schedule="{{ program.schedule }}"
+                                        data-location="{{ program.location }}">
+                                    {{ program.name }} ({{ program.age_group }})
+                                </option>
                                 {% endfor %}
                             </select>
                         </div>
                         
                         <div class="mb-3">
-                            <label for="student_id" class="form-label">Student</label>
-                            <select class="form-control" id="student_id" name="student_id" required>
-                                <option value="">Select Student</option>
-                                {% for student in students %}
-                                <option value="{{ student.id }}">{{ student.first_name }} {{ student.last_name }}</option>
-                                {% endfor %}
-                            </select>
+                            <label for="student_search" class="form-label">Student</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="student_search" placeholder="Search student by name or email..." autocomplete="off">
+                                <button type="button" class="btn btn-outline-secondary" onclick="searchStudent()">
+                                    <i class="fas fa-search"></i>
+                                </button>
+                            </div>
+                            <div id="student_results" class="member-results mt-2"></div>
+                            <input type="hidden" name="student_id" id="student_id" required>
+                            <div id="selected_student" class="selected-member mt-2"></div>
                         </div>
                         
                         <div class="mb-3">
-                            <label for="parent_contact" class="form-label">Parent/Guardian Contact</label>
-                            <input type="text" class="form-control" id="parent_contact" name="parent_contact" required>
+                            <label for="parent_search" class="form-label">Parent/Guardian</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="parent_search" placeholder="Search parent/guardian by name or email..." autocomplete="off">
+                                <button type="button" class="btn btn-outline-secondary" onclick="searchParent()">
+                                    <i class="fas fa-search"></i>
+                                </button>
+                            </div>
+                            <div id="parent_results" class="member-results mt-2"></div>
+                            <input type="hidden" name="parent_id" id="parent_id" required>
+                            <div id="selected_parent" class="selected-member mt-2"></div>
                         </div>
                         
                         <div class="mb-3">
@@ -95,8 +110,157 @@
     </div>
 </div>
 
-{% block scripts %}
+<style>
+.member-results {
+    max-height: 200px;
+    overflow-y: auto;
+    border: 1px solid #dee2e6;
+    border-radius: 0.25rem;
+    display: none;
+    background: white;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    z-index: 1000;
+    position: absolute;
+    width: calc(100% - 42px);
+}
+
+.member-result-item {
+    padding: 0.75rem;
+    cursor: pointer;
+    border-bottom: 1px solid #dee2e6;
+    transition: background-color 0.2s;
+}
+
+.member-result-item:hover {
+    background-color: #f8f9fa;
+}
+
+.member-result-item:last-child {
+    border-bottom: none;
+}
+
+.selected-member {
+    padding: 0.75rem;
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 0.25rem;
+    margin-top: 0.5rem;
+    display: none;
+}
+
+.badge {
+    font-size: 0.75rem;
+    padding: 0.25em 0.5em;
+}
+</style>
+
 <script>
+function searchMember(type) {
+    const searchInput = document.getElementById(`${type}_search`).value;
+    const resultsDiv = document.getElementById(`${type}_results`);
+    
+    if (searchInput.length < 2) {
+        resultsDiv.style.display = 'none';
+        return;
+    }
+    
+    resultsDiv.style.display = 'block';
+    resultsDiv.innerHTML = '<div class="p-2">Searching...</div>';
+    
+    // Make AJAX call to search members
+    fetch(`/api/search_members?q=${encodeURIComponent(searchInput)}`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.length === 0) {
+                resultsDiv.innerHTML = '<div class="p-2 text-muted">No members found</div>';
+                return;
+            }
+            
+            resultsDiv.innerHTML = data.map(member => `
+                <div class="member-result-item" onclick="selectMember('${type}', ${member.id}, '${member.first_name}', '${member.last_name}', '${member.email}', '${member.phone || ''}')">
+                    <strong>${member.first_name} ${member.last_name}</strong><br>
+                    <small class="text-muted">${member.email}${member.phone ? ` • ${member.phone}` : ''}</small>
+                </div>
+            `).join('');
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            resultsDiv.innerHTML = '<div class="p-2 text-danger">Error searching members</div>';
+        });
+}
+
+function selectMember(type, id, firstName, lastName, email, phone) {
+    document.getElementById(`${type}_id`).value = id;
+    document.getElementById(`${type}_search`).value = `${firstName} ${lastName}`;
+    document.getElementById(`${type}_results`).style.display = 'none';
+    
+    const selectedDiv = document.getElementById(`selected_${type}`);
+    selectedDiv.style.display = 'block';
+    selectedDiv.innerHTML = `
+        <div class="d-flex justify-content-between align-items-start">
+            <div>
+                <strong>${firstName} ${lastName}</strong><br>
+                <small class="text-muted">${email}${phone ? ` • ${phone}` : ''}</small>
+            </div>
+            <button type="button" class="btn btn-sm btn-link text-danger" onclick="clearMember('${type}')">
+                <i class="fas fa-times"></i> Clear
+            </button>
+        </div>
+    `;
+    
+    if (type === 'parent') {
+        // Auto-fill emergency contact if parent is selected
+        document.getElementById('emergency_contact').value = phone || '';
+    }
+}
+
+function clearMember(type) {
+    document.getElementById(`${type}_id`).value = '';
+    document.getElementById(`${type}_search`).value = '';
+    document.getElementById(`selected_${type}`).style.display = 'none';
+    
+    if (type === 'parent') {
+        // Clear emergency contact if parent is cleared
+        document.getElementById('emergency_contact').value = '';
+    }
+}
+
+function searchStudent() {
+    searchMember('student');
+}
+
+function searchParent() {
+    searchMember('parent');
+}
+
+// Add debounce to search inputs
+let studentSearchTimeout = null;
+let parentSearchTimeout = null;
+
+document.getElementById('student_search').addEventListener('input', (e) => {
+    clearTimeout(studentSearchTimeout);
+    studentSearchTimeout = setTimeout(() => searchStudent(), 300);
+});
+
+document.getElementById('parent_search').addEventListener('input', (e) => {
+    clearTimeout(parentSearchTimeout);
+    parentSearchTimeout = setTimeout(() => searchParent(), 300);
+});
+
+// Close results when clicking outside
+document.addEventListener('click', function(event) {
+    if (!event.target.closest('.member-results') && !event.target.closest('input') && !event.target.closest('button')) {
+        document.getElementById('student_results').style.display = 'none';
+        document.getElementById('parent_results').style.display = 'none';
+    }
+});
+
+// Program info update
 document.getElementById('program_id').addEventListener('change', function() {
     const programId = this.value;
     const programInfo = document.getElementById('program-info');
@@ -106,15 +270,15 @@ document.getElementById('program_id').addEventListener('change', function() {
         return;
     }
     
-    const selectedProgram = Array.from(this.options).find(option => option.value === programId);
-    const programDetails = selectedProgram.textContent;
+    const selectedOption = this.options[this.selectedIndex];
+    const schedule = selectedOption.dataset.schedule || 'Not specified';
+    const location = selectedOption.dataset.location || 'Not specified';
     
     programInfo.innerHTML = `
-        <h6>${programDetails}</h6>
-        <p><strong>Schedule:</strong> <span class="text-muted">${selectedProgram.dataset.schedule || 'Not specified'}</span></p>
-        <p><strong>Location:</strong> <span class="text-muted">${selectedProgram.dataset.location || 'Not specified'}</span></p>
+        <h6>${selectedOption.text}</h6>
+        <p><strong>Schedule:</strong> <span class="text-muted">${schedule}</span></p>
+        <p><strong>Location:</strong> <span class="text-muted">${location}</span></p>
     `;
 });
 </script>
-{% endblock %}
 {% endblock %} 

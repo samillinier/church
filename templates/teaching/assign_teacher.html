@@ -20,13 +20,16 @@
                         </div>
                         
                         <div class="mb-3">
-                            <label for="teacher_id" class="form-label">Teacher</label>
-                            <select class="form-control" id="teacher_id" name="teacher_id" required>
-                                <option value="">Select Teacher</option>
-                                {% for teacher in teachers %}
-                                <option value="{{ teacher.id }}">{{ teacher.first_name }} {{ teacher.last_name }}</option>
-                                {% endfor %}
-                            </select>
+                            <label for="teacher_search" class="form-label">Teacher</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="teacher_search" placeholder="Search teacher by name or email..." autocomplete="off">
+                                <button type="button" class="btn btn-outline-secondary" onclick="searchTeacher()">
+                                    <i class="fas fa-search"></i>
+                                </button>
+                            </div>
+                            <div id="teacher_results" class="member-results mt-2"></div>
+                            <input type="hidden" name="teacher_id" id="teacher_id" required>
+                            <div id="selected_teacher" class="selected-member mt-2"></div>
                         </div>
                         
                         <div class="mb-3">
@@ -86,4 +89,130 @@
         </div>
     </div>
 </div>
+
+<style>
+.member-results {
+    max-height: 200px;
+    overflow-y: auto;
+    border: 1px solid #dee2e6;
+    border-radius: 0.25rem;
+    display: none;
+    background: white;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    z-index: 1000;
+    position: absolute;
+    width: calc(100% - 42px);
+}
+
+.member-result-item {
+    padding: 0.75rem;
+    cursor: pointer;
+    border-bottom: 1px solid #dee2e6;
+    transition: background-color 0.2s;
+}
+
+.member-result-item:hover {
+    background-color: #f8f9fa;
+}
+
+.member-result-item:last-child {
+    border-bottom: none;
+}
+
+.selected-member {
+    padding: 0.75rem;
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 0.25rem;
+    margin-top: 0.5rem;
+    display: none;
+}
+
+.badge {
+    font-size: 0.75rem;
+    padding: 0.25em 0.5em;
+}
+</style>
+
+<script>
+function searchTeacher() {
+    const searchInput = document.getElementById('teacher_search').value;
+    const resultsDiv = document.getElementById('teacher_results');
+    
+    if (searchInput.length < 2) {
+        resultsDiv.style.display = 'none';
+        return;
+    }
+    
+    resultsDiv.style.display = 'block';
+    resultsDiv.innerHTML = '<div class="p-2">Searching...</div>';
+    
+    // Make AJAX call to search members
+    fetch(`/api/search_members?q=${encodeURIComponent(searchInput)}`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.length === 0) {
+                resultsDiv.innerHTML = '<div class="p-2 text-muted">No members found</div>';
+                return;
+            }
+            
+            resultsDiv.innerHTML = data.map(member => `
+                <div class="member-result-item" onclick="selectTeacher(${member.id}, '${member.first_name}', '${member.last_name}', '${member.email}')">
+                    <strong>${member.first_name} ${member.last_name}</strong><br>
+                    <small class="text-muted">${member.email}</small>
+                </div>
+            `).join('');
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            resultsDiv.innerHTML = '<div class="p-2 text-danger">Error searching members</div>';
+        });
+}
+
+function selectTeacher(id, firstName, lastName, email) {
+    document.getElementById('teacher_id').value = id;
+    document.getElementById('teacher_search').value = `${firstName} ${lastName}`;
+    document.getElementById('teacher_results').style.display = 'none';
+    
+    const selectedDiv = document.getElementById('selected_teacher');
+    selectedDiv.style.display = 'block';
+    selectedDiv.innerHTML = `
+        <div class="d-flex justify-content-between align-items-start">
+            <div>
+                <strong>${firstName} ${lastName}</strong><br>
+                <small class="text-muted">${email}</small>
+            </div>
+            <button type="button" class="btn btn-sm btn-link text-danger" onclick="clearTeacher()">
+                <i class="fas fa-times"></i> Clear
+            </button>
+        </div>
+    `;
+}
+
+function clearTeacher() {
+    document.getElementById('teacher_id').value = '';
+    document.getElementById('teacher_search').value = '';
+    document.getElementById('selected_teacher').style.display = 'none';
+}
+
+// Add debounce to search
+let searchTimeout = null;
+const searchInput = document.getElementById('teacher_search');
+searchInput.addEventListener('input', (e) => {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => searchTeacher(), 300);
+});
+
+// Close results when clicking outside
+document.addEventListener('click', function(event) {
+    if (!event.target.closest('.member-results') && !event.target.closest('input') && !event.target.closest('button')) {
+        document.getElementById('teacher_results').style.display = 'none';
+    }
+});
+</script>
 {% endblock %} 

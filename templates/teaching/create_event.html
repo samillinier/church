@@ -2,7 +2,7 @@
 
 {% block content %}
 <div class="container-fluid py-4">
-    <h1 class="h3 mb-4">Create New Teaching Program</h1>
+    <h1 class="h3 mb-4">Create Teaching Event</h1>
     
     <div class="row">
         <div class="col-md-8">
@@ -10,18 +10,18 @@
                 <div class="card-body">
                     <form method="POST">
                         <div class="mb-3">
-                            <label for="name" class="form-label">Program Name</label>
-                            <input type="text" class="form-control" id="name" name="name" required>
+                            <label for="program_id" class="form-label">Program</label>
+                            <select class="form-control" id="program_id" name="program_id" required>
+                                <option value="">Select Program</option>
+                                {% for program in programs %}
+                                <option value="{{ program.id }}">{{ program.name }}</option>
+                                {% endfor %}
+                            </select>
                         </div>
                         
                         <div class="mb-3">
-                            <label for="program_type" class="form-label">Program Type</label>
-                            <select class="form-control" id="program_type" name="program_type" required>
-                                <option value="sunday_school">Sunday School</option>
-                                <option value="youth">Youth Ministry</option>
-                                <option value="children">Children's Ministry</option>
-                                <option value="bible_study">Bible Study</option>
-                            </select>
+                            <label for="title" class="form-label">Event Title</label>
+                            <input type="text" class="form-control" id="title" name="title" required>
                         </div>
                         
                         <div class="mb-3">
@@ -30,13 +30,24 @@
                         </div>
                         
                         <div class="mb-3">
-                            <label for="age_group" class="form-label">Age Group</label>
-                            <input type="text" class="form-control" id="age_group" name="age_group" placeholder="e.g., 3-5 years">
+                            <label for="event_type" class="form-label">Event Type</label>
+                            <select class="form-control" id="event_type" name="event_type" required>
+                                <option value="">Select Type</option>
+                                <option value="class">Class</option>
+                                <option value="activity">Activity</option>
+                                <option value="field_trip">Field Trip</option>
+                                <option value="competition">Competition</option>
+                            </select>
                         </div>
                         
                         <div class="mb-3">
-                            <label for="schedule" class="form-label">Schedule</label>
-                            <input type="text" class="form-control" id="schedule" name="schedule" placeholder="e.g., Every Sunday 9:00 AM">
+                            <label for="date" class="form-label">Date</label>
+                            <input type="date" class="form-control" id="date" name="date" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="time" class="form-label">Time</label>
+                            <input type="time" class="form-control" id="time" name="time">
                         </div>
                         
                         <div class="mb-3">
@@ -45,21 +56,33 @@
                         </div>
                         
                         <div class="mb-3">
-                            <label for="coordinator_search" class="form-label">Program Coordinator</label>
+                            <label for="coordinator_search" class="form-label">Event Coordinator</label>
                             <div class="input-group">
-                                <input type="text" class="form-control" id="coordinator_search" placeholder="Search coordinator by name or email..." autocomplete="off">
+                                <input type="text" class="form-control" id="coordinator_search" 
+                                       placeholder="Search coordinator by name or email..." autocomplete="off">
                                 <button type="button" class="btn btn-outline-secondary" onclick="searchCoordinator()">
                                     <i class="fas fa-search"></i>
                                 </button>
                             </div>
                             <div id="coordinator_results" class="member-results mt-2"></div>
-                            <input type="hidden" name="coordinator_id" id="coordinator_id" required>
+                            <input type="hidden" name="coordinator_id" id="coordinator_id">
                             <div id="selected_coordinator" class="selected-member mt-2"></div>
                         </div>
                         
+                        <div class="mb-3">
+                            <label for="max_participants" class="form-label">Maximum Participants</label>
+                            <input type="number" class="form-control" id="max_participants" name="max_participants" min="1">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="requirements" class="form-label">Requirements</label>
+                            <textarea class="form-control" id="requirements" name="requirements" rows="3" 
+                                    placeholder="List any requirements or materials needed"></textarea>
+                        </div>
+                        
                         <div class="text-end">
-                            <a href="{{ url_for('teaching_programs') }}" class="btn btn-secondary">Cancel</a>
-                            <button type="submit" class="btn btn-primary">Create Program</button>
+                            <a href="{{ url_for('teaching_events') }}" class="btn btn-secondary">Cancel</a>
+                            <button type="submit" class="btn btn-primary">Create Event</button>
                         </div>
                     </form>
                 </div>
@@ -69,23 +92,23 @@
         <div class="col-md-4">
             <div class="card">
                 <div class="card-body">
-                    <h5 class="card-title">Program Types</h5>
-                    <ul class="list-group">
+                    <h5 class="card-title">Event Guidelines</h5>
+                    <ul class="list-group list-group-flush">
                         <li class="list-group-item">
-                            <h6>Sunday School</h6>
-                            <small class="text-muted">Biblical education for all age groups</small>
+                            <i class="fas fa-info-circle text-primary me-2"></i>
+                            Provide clear and descriptive event title
                         </li>
                         <li class="list-group-item">
-                            <h6>Youth Ministry</h6>
-                            <small class="text-muted">Programs for teenagers and young adults</small>
+                            <i class="fas fa-info-circle text-primary me-2"></i>
+                            Include all necessary details in description
                         </li>
                         <li class="list-group-item">
-                            <h6>Children's Ministry</h6>
-                            <small class="text-muted">Activities and lessons for children</small>
+                            <i class="fas fa-info-circle text-primary me-2"></i>
+                            Specify location and time accurately
                         </li>
                         <li class="list-group-item">
-                            <h6>Bible Study</h6>
-                            <small class="text-muted">In-depth scripture study groups</small>
+                            <i class="fas fa-info-circle text-primary me-2"></i>
+                            List any special requirements or materials
                         </li>
                     </ul>
                 </div>
@@ -131,11 +154,6 @@
     margin-top: 0.5rem;
     display: none;
 }
-
-.badge {
-    font-size: 0.75rem;
-    padding: 0.25em 0.5em;
-}
 </style>
 
 <script>
@@ -151,7 +169,6 @@ function searchCoordinator() {
     resultsDiv.style.display = 'block';
     resultsDiv.innerHTML = '<div class="p-2">Searching...</div>';
     
-    // Make AJAX call to search members
     fetch(`/api/search_members?q=${encodeURIComponent(searchInput)}`)
         .then(response => {
             if (!response.ok) {
@@ -166,9 +183,9 @@ function searchCoordinator() {
             }
             
             resultsDiv.innerHTML = data.map(member => `
-                <div class="member-result-item" onclick="selectCoordinator(${member.id}, '${member.first_name}', '${member.last_name}', '${member.email}')">
+                <div class="member-result-item" onclick="selectCoordinator(${member.id}, '${member.first_name}', '${member.last_name}', '${member.email}', '${member.phone || ''}')">
                     <strong>${member.first_name} ${member.last_name}</strong><br>
-                    <small class="text-muted">${member.email}</small>
+                    <small class="text-muted">${member.email}${member.phone ? ` • ${member.phone}` : ''}</small>
                 </div>
             `).join('');
         })
@@ -178,7 +195,7 @@ function searchCoordinator() {
         });
 }
 
-function selectCoordinator(id, firstName, lastName, email) {
+function selectCoordinator(id, firstName, lastName, email, phone) {
     document.getElementById('coordinator_id').value = id;
     document.getElementById('coordinator_search').value = `${firstName} ${lastName}`;
     document.getElementById('coordinator_results').style.display = 'none';
@@ -189,7 +206,7 @@ function selectCoordinator(id, firstName, lastName, email) {
         <div class="d-flex justify-content-between align-items-start">
             <div>
                 <strong>${firstName} ${lastName}</strong><br>
-                <small class="text-muted">${email}</small>
+                <small class="text-muted">${email}${phone ? ` • ${phone}` : ''}</small>
             </div>
             <button type="button" class="btn btn-sm btn-link text-danger" onclick="clearCoordinator()">
                 <i class="fas fa-times"></i> Clear
@@ -204,18 +221,29 @@ function clearCoordinator() {
     document.getElementById('selected_coordinator').style.display = 'none';
 }
 
-// Add debounce to search
-let searchTimeout = null;
-const searchInput = document.getElementById('coordinator_search');
-searchInput.addEventListener('input', (e) => {
-    clearTimeout(searchTimeout);
-    searchTimeout = setTimeout(() => searchCoordinator(), 300);
+// Add debounce to coordinator search
+let coordinatorSearchTimeout = null;
+
+document.getElementById('coordinator_search').addEventListener('input', (e) => {
+    clearTimeout(coordinatorSearchTimeout);
+    coordinatorSearchTimeout = setTimeout(() => searchCoordinator(), 300);
 });
 
 // Close results when clicking outside
 document.addEventListener('click', function(event) {
     if (!event.target.closest('.member-results') && !event.target.closest('input') && !event.target.closest('button')) {
         document.getElementById('coordinator_results').style.display = 'none';
+    }
+});
+
+// Update program info when program is selected
+document.getElementById('program_id').addEventListener('change', function() {
+    const selectedOption = this.options[this.selectedIndex];
+    const programInfo = document.getElementById('program-info');
+    
+    if (!this.value) {
+        programInfo.innerHTML = '<p class="text-muted">Select a program to view details</p>';
+        return;
     }
 });
 </script>

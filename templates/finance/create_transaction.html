@@ -37,7 +37,7 @@
 
                         <!-- Amount -->
                         <div class="mb-4">
-                            <label for="amount" class="form-label">Amount (₦)</label>
+                            <label for="amount" class="form-label">Amount (Br)</label>
                             <input type="number" class="form-control" name="amount" id="amount" step="0.01" required>
                         </div>
 
@@ -92,12 +92,21 @@
                             </div>
 
                             <div class="mb-4">
-                                <label for="donor_name" class="form-label">Donor Name</label>
-                                <input type="text" class="form-control" name="donor_name" id="donor_name">
+                                <label for="donor_search" class="form-label">Donor</label>
+                                <div class="input-group">
+                                    <input type="text" class="form-control" id="donor_search" 
+                                           placeholder="Search donor by name or email..." autocomplete="off">
+                                    <button type="button" class="btn btn-outline-secondary" onclick="searchDonor()">
+                                        <i class="fas fa-search"></i>
+                                    </button>
+                                </div>
+                                <div id="donor_results" class="member-results mt-2"></div>
+                                <input type="hidden" name="donor_name" id="donor_name">
+                                <div id="selected_donor" class="selected-member mt-2"></div>
                             </div>
 
                             <div class="mb-4 form-check">
-                                <input type="checkbox" class="form-check-input" name="is_anonymous" id="is_anonymous">
+                                <input type="checkbox" class="form-check-input" name="is_anonymous" id="is_anonymous" onchange="toggleDonorSearch()">
                                 <label class="form-check-label" for="is_anonymous">Anonymous Donation</label>
                             </div>
                         </div>
@@ -136,6 +145,45 @@
     </div>
 </div>
 
+<style>
+.member-results {
+    max-height: 200px;
+    overflow-y: auto;
+    border: 1px solid #dee2e6;
+    border-radius: 0.25rem;
+    display: none;
+    background: white;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    z-index: 1000;
+    position: absolute;
+    width: calc(100% - 42px);
+}
+
+.member-result-item {
+    padding: 0.75rem;
+    cursor: pointer;
+    border-bottom: 1px solid #dee2e6;
+    transition: background-color 0.2s;
+}
+
+.member-result-item:hover {
+    background-color: #f8f9fa;
+}
+
+.member-result-item:last-child {
+    border-bottom: none;
+}
+
+.selected-member {
+    padding: 0.75rem;
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 0.25rem;
+    margin-top: 0.5rem;
+    display: none;
+}
+</style>
+
 <script>
 function toggleFields() {
     const transactionType = document.getElementById('transaction_type').value;
@@ -169,6 +217,82 @@ function toggleFields() {
     }
 }
 
+function searchDonor() {
+    const searchInput = document.getElementById('donor_search').value;
+    const resultsDiv = document.getElementById('donor_results');
+    
+    if (searchInput.length < 2) {
+        resultsDiv.style.display = 'none';
+        return;
+    }
+    
+    resultsDiv.style.display = 'block';
+    resultsDiv.innerHTML = '<div class="p-2">Searching...</div>';
+    
+    fetch(`/api/search_members?q=${encodeURIComponent(searchInput)}`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.length === 0) {
+                resultsDiv.innerHTML = '<div class="p-2 text-muted">No members found</div>';
+                return;
+            }
+            
+            resultsDiv.innerHTML = data.map(member => `
+                <div class="member-result-item" onclick="selectDonor('${member.first_name} ${member.last_name}', '${member.email}', '${member.phone || ''}')">
+                    <strong>${member.first_name} ${member.last_name}</strong><br>
+                    <small class="text-muted">${member.email}${member.phone ? ` • ${member.phone}` : ''}</small>
+                </div>
+            `).join('');
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            resultsDiv.innerHTML = '<div class="p-2 text-danger">Error searching members</div>';
+        });
+}
+
+function selectDonor(name, email, phone) {
+    document.getElementById('donor_name').value = name;
+    document.getElementById('donor_search').value = name;
+    document.getElementById('donor_results').style.display = 'none';
+    
+    const selectedDiv = document.getElementById('selected_donor');
+    selectedDiv.style.display = 'block';
+    selectedDiv.innerHTML = `
+        <div class="d-flex justify-content-between align-items-start">
+            <div>
+                <strong>${name}</strong><br>
+                <small class="text-muted">${email}${phone ? ` • ${phone}` : ''}</small>
+            </div>
+            <button type="button" class="btn btn-sm btn-link text-danger" onclick="clearDonor()">
+                <i class="fas fa-times"></i> Clear
+            </button>
+        </div>
+    `;
+}
+
+function clearDonor() {
+    document.getElementById('donor_name').value = '';
+    document.getElementById('donor_search').value = '';
+    document.getElementById('selected_donor').style.display = 'none';
+}
+
+function toggleDonorSearch() {
+    const isAnonymous = document.getElementById('is_anonymous').checked;
+    const donorSearchContainer = document.getElementById('donor_search').parentElement.parentElement;
+    
+    if (isAnonymous) {
+        donorSearchContainer.style.display = 'none';
+        clearDonor();
+    } else {
+        donorSearchContainer.style.display = 'block';
+    }
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     // Set default date to today
     const today = new Date().toISOString().split('T')[0];
@@ -176,6 +300,20 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Initialize fields visibility
     toggleFields();
+    
+    // Add debounce to donor search
+    let donorSearchTimeout = null;
+    document.getElementById('donor_search').addEventListener('input', (e) => {
+        clearTimeout(donorSearchTimeout);
+        donorSearchTimeout = setTimeout(() => searchDonor(), 300);
+    });
+    
+    // Close results when clicking outside
+    document.addEventListener('click', function(event) {
+        if (!event.target.closest('.member-results') && !event.target.closest('input') && !event.target.closest('button')) {
+            document.getElementById('donor_results').style.display = 'none';
+        }
+    });
 });
 </script>
 {% endblock %} 

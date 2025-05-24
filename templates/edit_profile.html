@@ -1,1 +1,128 @@
- 
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card shadow">
+                <div class="card-body p-4">
+                    <h4 class="card-title mb-4">Edit Profile</h4>
+                    
+                    <form method="POST" action="{{ url_for('edit_profile') }}" enctype="multipart/form-data">
+                        <div class="mb-3">
+                            <label class="form-label">First Name</label>
+                            <input type="text" class="form-control" name="first_name" value="{{ current_user.first_name }}" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Last Name</label>
+                            <input type="text" class="form-control" name="last_name" value="{{ current_user.last_name }}" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Email</label>
+                            <input type="email" class="form-control" name="email" value="{{ current_user.email }}" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Phone</label>
+                            <input type="tel" class="form-control" name="phone" value="{{ current_user.phone }}">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Address</label>
+                            <textarea class="form-control" name="address" rows="3">{{ current_user.address }}</textarea>
+                        </div>
+                        
+                        {% if current_user.role == 'admin' %}
+                        <div class="mb-3">
+                            <label class="form-label">Role</label>
+                            <select class="form-select" name="role">
+                                <option value="admin" {% if current_user.role == 'admin' %}selected{% endif %}>Admin</option>
+                                <option value="finance_admin" {% if current_user.role == 'finance_admin' %}selected{% endif %}>Finance Admin</option>
+                                <option value="finance_officer" {% if current_user.role == 'finance_officer' %}selected{% endif %}>Finance Officer</option>
+                                <option value="coordinator" {% if current_user.role == 'coordinator' %}selected{% endif %}>Coordinator</option>
+                                <option value="teacher" {% if current_user.role == 'teacher' %}selected{% endif %}>Teacher</option>
+                                <option value="user" {% if current_user.role == 'user' %}selected{% endif %}>User</option>
+                            </select>
+                            <small class="text-muted">Only admin users can change roles</small>
+                        </div>
+                        {% endif %}
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Profile Picture</label>
+                            <input type="file" class="form-control" name="profile_picture" accept="image/*">
+                            {% if current_user.profile_picture %}
+                            <small class="text-muted">Leave empty to keep current picture</small>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary">Save Changes</button>
+                            <a href="{{ url_for('profile') }}" class="btn btn-outline-secondary">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .card {
+        border: none;
+        border-radius: 15px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+    }
+
+    .card-title {
+        color: var(--primary-gradient-start);
+        font-weight: 600;
+    }
+
+    .form-control, .form-select {
+        border-radius: 8px;
+        padding: 0.75rem 1rem;
+        border: 1px solid rgba(0,0,0,0.1);
+    }
+
+    .form-control:focus, .form-select:focus {
+        box-shadow: 0 0 0 3px rgba(30,60,114,0.1);
+        border-color: var(--primary-gradient-start);
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, var(--primary-gradient-start), var(--primary-gradient-end));
+        border: none;
+        padding: 0.75rem 1.5rem;
+        font-weight: 500;
+        border-radius: 8px;
+        transition: all 0.3s ease;
+    }
+
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(30,60,114,0.2);
+    }
+
+    .btn-outline-secondary {
+        color: #636e72;
+        border-color: #636e72;
+        padding: 0.75rem 1.5rem;
+        font-weight: 500;
+        border-radius: 8px;
+        transition: all 0.3s ease;
+    }
+
+    .btn-outline-secondary:hover {
+        background-color: #636e72;
+        color: white;
+        transform: translateY(-2px);
+    }
+
+    .text-muted {
+        font-size: 0.875rem;
+        margin-top: 0.25rem;
+    }
+</style>
+{% endblock %} 
