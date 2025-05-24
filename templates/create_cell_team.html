@@ -1,56 +1,38 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-md-8">
-        <div class="card">
-            <div class="card-header">
-                <h3 class="text-center mb-0">
-                    <i class="fas fa-users me-2 text-primary"></i>
-                    Create New Cell Team
-                </h3>
-            </div>
-            <div class="card-body">
-                <form method="POST">
-                    <div class="mb-3">
-                        <label for="name" class="form-label">Team Name</label>
-                        <input type="text" class="form-control" id="name" name="name" required>
-                    </div>
-
-                    <!-- Leader Information -->
-                    <div class="card mb-4">
-                        <div class="card-header">
-                            <h5 class="mb-0">Team Leader Information</h5>
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card">
+                <div class="card-body p-4">
+                    <h4 class="card-title mb-4">Create Cell Team</h4>
+                    
+                    <form method="POST" action="{{ url_for('create_cell_team') }}" class="needs-validation" novalidate>
+                        <div class="mb-4">
+                            <label class="form-label">Team Name</label>
+                            <input type="text" class="form-control form-control-lg" name="name" required 
+                                   placeholder="Enter team name">
+                            <div class="invalid-feedback">Please enter a team name</div>
                         </div>
-                        <div class="card-body">
-                            <div class="row">
-                                <div class="col-md-6 mb-3">
-                                    <label for="leader_first_name" class="form-label">First Name</label>
-                                    <input type="text" class="form-control" id="leader_first_name" name="leader_first_name" required>
-                                </div>
-                                <div class="col-md-6 mb-3">
-                                    <label for="leader_last_name" class="form-label">Last Name</label>
-                                    <input type="text" class="form-control" id="leader_last_name" name="leader_last_name" required>
-                                </div>
-                            </div>
-                            <div class="row">
-                                <div class="col-md-6 mb-3">
-                                    <label for="leader_email" class="form-label">Email</label>
-                                    <input type="email" class="form-control" id="leader_email" name="leader_email" required>
-                                </div>
-                                <div class="col-md-6 mb-3">
-                                    <label for="leader_phone" class="form-label">Phone</label>
-                                    <input type="tel" class="form-control" id="leader_phone" name="leader_phone" required>
-                                </div>
-                            </div>
+                        
+                        <div class="mb-4">
+                            <label class="form-label">Leader Name</label>
+                            <input type="text" class="form-control form-control-lg" name="leader_name" required
+                                   placeholder="Enter leader's full name">
+                            <div class="invalid-feedback">Please enter leader's name</div>
                         </div>
-                    </div>
 
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label for="meeting_day" class="form-label">Meeting Day</label>
-                            <select class="form-select" id="meeting_day" name="meeting_day" required>
-                                <option value="">Select Day</option>
+                        <div class="mb-4">
+                            <label class="form-label">Leader Contact</label>
+                            <input type="text" class="form-control form-control-lg" name="leader_contact"
+                                   placeholder="Enter leader's contact info">
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label">Meeting Day</label>
+                            <select class="form-select form-select-lg" name="meeting_day" required>
+                                <option value="" disabled selected>Select meeting day</option>
                                 <option value="Monday">Monday</option>
                                 <option value="Tuesday">Tuesday</option>
                                 <option value="Wednesday">Wednesday</option>
@@ -59,80 +41,239 @@
                                 <option value="Saturday">Saturday</option>
                                 <option value="Sunday">Sunday</option>
                             </select>
+                            <div class="invalid-feedback">Please select a meeting day</div>
                         </div>
 
-                        <div class="col-md-6 mb-3">
-                            <label for="meeting_time" class="form-label">Meeting Time</label>
-                            <input type="time" class="form-control" id="meeting_time" name="meeting_time" required>
+                        <div class="mb-4">
+                            <label class="form-label">Meeting Time</label>
+                            <input type="time" class="form-control form-control-lg" name="meeting_time" required>
+                            <div class="invalid-feedback">Please select a meeting time</div>
                         </div>
-                    </div>
 
-                    <div class="mb-3">
-                        <label for="location" class="form-label">Meeting Location</label>
-                        <input type="text" class="form-control" id="location" name="location" required>
-                    </div>
-
-                    <div class="mb-4">
-                        <label for="description" class="form-label">Description</label>
-                        <textarea class="form-control" id="description" name="description" rows="3"></textarea>
-                    </div>
-
-                    <div class="mb-4">
-                        <label class="form-label">Initial Team Members</label>
-                        <div class="input-group mb-3">
-                            <input type="text" class="form-control" id="memberSearch" placeholder="Search members..." onkeyup="filterMembers()">
-                            <button class="btn btn-outline-secondary" type="button" onclick="clearSearch()">
-                                <i class="fas fa-times"></i>
-                            </button>
+                        <div class="mb-4">
+                            <label class="form-label">Location</label>
+                            <input type="text" class="form-control form-control-lg" name="location" required
+                                   placeholder="Enter meeting location">
+                            <div class="invalid-feedback">Please enter a location</div>
                         </div>
-                        <div class="member-list border rounded p-3" style="max-height: 300px; overflow-y: auto;">
-                            {% for member in members %}
-                            <div class="form-check member-item mb-2">
-                                <input class="form-check-input" type="checkbox" name="team_members" value="{{ member.id }}" id="member{{ member.id }}">
-                                <label class="form-check-label" for="member{{ member.id }}">
-                                    {{ member.first_name }} {{ member.last_name }}
-                                    <small class="text-muted d-block">{{ member.email }}</small>
-                                </label>
+
+                        <div class="mb-4">
+                            <label class="form-label">Members</label>
+                            <div class="input-group mb-2">
+                                <input type="text" class="form-control form-control-lg" id="memberSearch" 
+                                       placeholder="Search members...">
+                                <button class="btn btn-outline-secondary" type="button" id="searchBtn">
+                                    <i class="fas fa-search"></i>
+                                </button>
                             </div>
-                            {% endfor %}
+                            <div id="searchResults" class="list-group mb-2" style="max-height: 200px; overflow-y: auto;">
+                                <!-- Search results will appear here -->
+                            </div>
+                            <div id="selectedMembers" class="selected-members">
+                                <!-- Selected members will appear here -->
+                            </div>
                         </div>
-                    </div>
 
-                    <div class="text-center">
-                        <button type="submit" class="btn btn-primary btn-lg">
-                            <i class="fas fa-plus me-2"></i>Create Cell Team
-                        </button>
-                        <a href="{{ url_for('cell_teams') }}" class="btn btn-secondary btn-lg ms-2">
-                            <i class="fas fa-times me-2"></i>Cancel
-                        </a>
-                    </div>
-                </form>
+                        <div class="mb-4">
+                            <label class="form-label">Description</label>
+                            <textarea class="form-control form-control-lg" name="description" rows="3"
+                                    placeholder="Enter team description"></textarea>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label">Status</label>
+                            <select class="form-select form-select-lg" name="status" required>
+                                <option value="active">Active</option>
+                                <option value="inactive">Inactive</option>
+                            </select>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-save me-2"></i>Create Cell Team
+                            </button>
+                            <a href="{{ url_for('cell_teams') }}" class="btn btn-outline-secondary btn-lg">
+                                <i class="fas fa-arrow-left me-2"></i>Back
+                            </a>
+                        </div>
+                    </form>
+                </div>
             </div>
         </div>
     </div>
 </div>
 
+<style>
+    .form-label {
+        font-weight: 600;
+        color: #2d3436;
+        margin-bottom: 0.5rem;
+    }
+
+    .card {
+        border: none;
+        border-radius: 15px;
+        box-shadow: 0 0 30px rgba(0,0,0,0.08);
+    }
+
+    .form-control, .form-select {
+        border: 2px solid #e9ecef;
+        border-radius: 10px;
+        padding: 0.75rem 1rem;
+        transition: all 0.3s ease;
+    }
+
+    .form-control:focus, .form-select:focus {
+        border-color: var(--primary-gradient-start);
+        box-shadow: 0 0 0 0.25rem rgba(var(--primary-rgb), 0.1);
+    }
+
+    .btn {
+        border-radius: 10px;
+        padding: 0.75rem 1.5rem;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+
+    .btn-primary {
+        background: linear-gradient(45deg, var(--primary-gradient-start), var(--primary-gradient-end));
+        border: none;
+    }
+
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(var(--primary-rgb), 0.2);
+    }
+
+    .btn-outline-secondary {
+        border: 2px solid #e9ecef;
+        color: #2d3436;
+    }
+
+    .btn-outline-secondary:hover {
+        background: #f8f9fa;
+        border-color: #dee2e6;
+        color: #2d3436;
+    }
+
+    .selected-members {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-top: 0.5rem;
+    }
+
+    .member-tag {
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 20px;
+        padding: 0.25rem 0.75rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .member-tag .remove-member {
+        cursor: pointer;
+        color: #dc3545;
+    }
+
+    #searchResults {
+        border: 2px solid #e9ecef;
+        border-radius: 10px;
+    }
+
+    #searchResults .list-group-item {
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    #searchResults .list-group-item:hover {
+        background-color: #f8f9fa;
+    }
+</style>
+
 <script>
-function filterMembers() {
-    const searchText = document.getElementById('memberSearch').value.toLowerCase();
-    const memberItems = document.getElementsByClassName('member-item');
-    
-    Array.from(memberItems).forEach(item => {
-        const label = item.getElementsByClassName('form-check-label')[0];
-        const text = label.textContent.toLowerCase();
-        if (text.includes(searchText)) {
-            item.style.display = '';
-        } else {
-            item.style.display = 'none';
+document.addEventListener('DOMContentLoaded', function() {
+    const memberSearch = document.getElementById('memberSearch');
+    const searchResults = document.getElementById('searchResults');
+    const selectedMembers = document.getElementById('selectedMembers');
+    const selectedMemberIds = new Set();
+
+    memberSearch.addEventListener('input', debounce(function() {
+        const searchTerm = this.value.trim();
+        if (searchTerm.length < 2) {
+            searchResults.innerHTML = '';
+            return;
+        }
+
+        fetch(`/api/search_members?q=${encodeURIComponent(searchTerm)}`)
+            .then(response => response.json())
+            .then(data => {
+                searchResults.innerHTML = data
+                    .filter(member => !selectedMemberIds.has(member.id))
+                    .map(member => `
+                        <div class="list-group-item list-group-item-action" 
+                             data-id="${member.id}" 
+                             data-name="${member.name}">
+                            ${member.name} <small class="text-muted">${member.email}</small>
+                        </div>
+                    `).join('');
+            });
+    }, 300));
+
+    searchResults.addEventListener('click', function(e) {
+        const item = e.target.closest('.list-group-item');
+        if (!item) return;
+
+        const memberId = item.dataset.id;
+        const memberName = item.dataset.name;
+
+        if (!selectedMemberIds.has(memberId)) {
+            selectedMemberIds.add(memberId);
+            const memberTag = document.createElement('div');
+            memberTag.className = 'member-tag';
+            memberTag.innerHTML = `
+                ${memberName}
+                <input type="hidden" name="member_ids[]" value="${memberId}">
+                <span class="remove-member" data-id="${memberId}">&times;</span>
+            `;
+            selectedMembers.appendChild(memberTag);
+        }
+
+        memberSearch.value = '';
+        searchResults.innerHTML = '';
+    });
+
+    selectedMembers.addEventListener('click', function(e) {
+        if (e.target.classList.contains('remove-member')) {
+            const memberId = e.target.dataset.id;
+            selectedMemberIds.delete(memberId);
+            e.target.parentElement.remove();
         }
     });
-}
 
-function clearSearch() {
-    document.getElementById('memberSearch').value = '';
-    Array.from(document.getElementsByClassName('member-item')).forEach(item => {
-        item.style.display = '';
+    // Form validation
+    const form = document.querySelector('form');
+    form.addEventListener('submit', function(event) {
+        if (!form.checkValidity()) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+        form.classList.add('was-validated');
     });
+});
+
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func.apply(this, args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
 }
 </script>
 {% endblock %} 

@@ -1,6 +1,6 @@
 # EPAPHRA Church Management System
 
-A comprehensive church management system built with Flask, designed to help churches manage their members, cell teams, documents, marriages, and more.
+A comprehensive church management system built with Flask and SQLAlchemy.
 
 ## Features
 
@@ -25,30 +25,39 @@ A comprehensive church management system built with Flask, designed to help chur
   - Manage counseling sessions
   - Document requirements tracking
 
+- Teaching Program Management
+  - Manage programs and courses
+  - Track attendance
+  - Resource management
+
 - Financial Management
   - Track income and expenses
   - Generate financial reports
   - Budget management
 
-- Teaching Service Management
-  - Manage programs and courses
-  - Track attendance
-  - Resource management
+- Role-based Access Control
 
 - Notification System
   - Birthday and anniversary reminders
   - Event notifications
   - Real-time updates
 
+## Requirements
+
+- Python 3.8+
+- Flask
+- SQLAlchemy
+- Other dependencies in requirements.txt
+
 ## Installation
 
 1. Clone the repository:
 ```bash
-git clone <repository-url>
-cd EPOSPEA
+git clone https://github.com/samillinier/church.git
+cd church
 ```
 
-2. Create a virtual environment and activate it:
+2. Create and activate virtual environment:
 ```bash
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
@@ -65,12 +74,14 @@ python app.py
 ```
 
 5. Access the application:
-Open your browser and navigate to `http://localhost:3001`
+Open http://localhost:3002 in your web browser
 
-## Default Login
+## Default Users
 
-- Username: admin
-- Password: admin123
+The system comes with three default users:
+- Admin: username: `admin`, password: `admin123`
+- Finance Admin: username: `finance_admin`, password: `finance123`
+- Finance Officer: username: `finance_officer`, password: `finance123`
 
 ## Directory Structure
 

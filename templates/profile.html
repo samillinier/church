@@ -1,0 +1,220 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row">
+        <!-- Profile Sidebar -->
+        <div class="col-lg-4">
+            <div class="card mb-4">
+                <div class="card-body text-center">
+                    <div class="profile-avatar mb-3">
+                        <i class="fas fa-user-circle"></i>
+                    </div>
+                    <h5 class="mb-1">{{ current_user.username }}</h5>
+                    <p class="text-muted mb-3">{{ current_user.role|title }}</p>
+                    <div class="d-flex justify-content-center mb-2">
+                        <a href="{{ url_for('edit_profile') }}" class="btn btn-primary me-2">
+                            <i class="fas fa-edit me-1"></i>Edit Profile
+                        </a>
+                        <a href="{{ url_for('change_password') }}" class="btn btn-outline-primary">
+                            <i class="fas fa-key me-1"></i>Change Password
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Quick Stats -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h6 class="card-title mb-3">Quick Stats</h6>
+                    <div class="quick-stat d-flex align-items-center mb-3">
+                        <div class="stat-icon">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <div class="stat-info ms-3">
+                            <h6 class="mb-0">Total Members</h6>
+                            <span class="text-muted">{{ member_count }}</span>
+                        </div>
+                    </div>
+                    <div class="quick-stat d-flex align-items-center mb-3">
+                        <div class="stat-icon">
+                            <i class="fas fa-layer-group"></i>
+                        </div>
+                        <div class="stat-info ms-3">
+                            <h6 class="mb-0">Cell Teams</h6>
+                            <span class="text-muted">{{ cell_team_count }}</span>
+                        </div>
+                    </div>
+                    <div class="quick-stat d-flex align-items-center">
+                        <div class="stat-icon">
+                            <i class="fas fa-calendar-check"></i>
+                        </div>
+                        <div class="stat-info ms-3">
+                            <h6 class="mb-0">Active Programs</h6>
+                            <span class="text-muted">{{ program_count }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Profile Content -->
+        <div class="col-lg-8">
+            <!-- Personal Information -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title mb-4">Personal Information</h5>
+                    <div class="row">
+                        <div class="col-sm-3">
+                            <p class="mb-0 text-muted">Full Name</p>
+                        </div>
+                        <div class="col-sm-9">
+                            <p class="mb-0">{{ current_user.username }}</p>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="row">
+                        <div class="col-sm-3">
+                            <p class="mb-0 text-muted">Email</p>
+                        </div>
+                        <div class="col-sm-9">
+                            <p class="mb-0">{{ current_user.email }}</p>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="row">
+                        <div class="col-sm-3">
+                            <p class="mb-0 text-muted">Role</p>
+                        </div>
+                        <div class="col-sm-9">
+                            <p class="mb-0">{{ current_user.role|title }}</p>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="row">
+                        <div class="col-sm-3">
+                            <p class="mb-0 text-muted">Last Login</p>
+                        </div>
+                        <div class="col-sm-9">
+                            <p class="mb-0">{{ current_user.last_login|default('Not available', true) }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Activity -->
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title mb-4">Recent Activity</h5>
+                    <div class="timeline">
+                        {% for activity in recent_activities %}
+                        <div class="timeline-item">
+                            <div class="timeline-icon">
+                                <i class="fas {{ activity.icon }}"></i>
+                            </div>
+                            <div class="timeline-content">
+                                <h6 class="mb-1">{{ activity.title }}</h6>
+                                <p class="text-muted mb-0">{{ activity.description }}</p>
+                                <small class="text-muted">{{ activity.timestamp }}</small>
+                            </div>
+                        </div>
+                        {% else %}
+                        <p class="text-muted">No recent activity to display.</p>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .profile-avatar {
+        width: 150px;
+        height: 150px;
+        margin: 0 auto;
+        background: linear-gradient(135deg, var(--primary-gradient-start), var(--primary-gradient-end));
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .profile-avatar i {
+        font-size: 80px;
+        color: white;
+    }
+
+    .quick-stat .stat-icon {
+        width: 45px;
+        height: 45px;
+        background: linear-gradient(135deg, var(--primary-gradient-start), var(--primary-gradient-end));
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .quick-stat .stat-icon i {
+        font-size: 20px;
+        color: white;
+    }
+
+    .timeline {
+        position: relative;
+        padding: 0;
+    }
+
+    .timeline-item {
+        position: relative;
+        padding-left: 45px;
+        margin-bottom: 25px;
+    }
+
+    .timeline-item:last-child {
+        margin-bottom: 0;
+    }
+
+    .timeline-icon {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 35px;
+        height: 35px;
+        background: rgba(30,60,114,0.1);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .timeline-icon i {
+        color: var(--primary-gradient-start);
+        font-size: 16px;
+    }
+
+    .timeline-content {
+        position: relative;
+    }
+
+    .timeline-content::before {
+        content: '';
+        position: absolute;
+        left: -30px;
+        top: 50%;
+        width: 20px;
+        height: 2px;
+        background: rgba(30,60,114,0.1);
+    }
+
+    .btn-outline-primary {
+        color: var(--primary-gradient-start);
+        border-color: var(--primary-gradient-start);
+    }
+
+    .btn-outline-primary:hover {
+        background: linear-gradient(135deg, var(--primary-gradient-start), var(--primary-gradient-end));
+        border-color: transparent;
+    }
+</style>
+{% endblock %} 

@@ -1,3 +1,7 @@
+{% macro has_permission(permission) %}
+    {{ permission in ROLE_PERMISSIONS.get(current_user.role, []) }}
+{% endmacro %}
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -140,31 +144,12 @@
             margin-left: 0.5rem;
             border-radius: 8px;
         }
-        .notification-badge {
-            position: absolute;
-            top: 5px;
-            right: 5px;
-            min-width: 18px;
-            height: 18px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 9px;
-            background: #ff4757;
-            color: white;
-            font-size: 11px;
-            font-weight: 600;
-            padding: 0 5px;
-            border: 2px solid var(--primary-gradient-start);
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-        }
-
         .notification-bell {
             position: relative;
             z-index: 1050;
             cursor: pointer;
             padding: 10px;
-            margin-right: 15px;
+            margin-right: 5px;
             width: 40px;
             height: 40px;
             display: flex;
@@ -173,6 +158,13 @@
             border-radius: 50%;
             transition: all 0.3s ease;
             background: rgba(255, 255, 255, 0.1);
+        }
+
+        .nav-item .notification-bell {
+            margin: 0 10px;
+            padding: 8px;
+            width: 36px;
+            height: 36px;
         }
 
         .notification-bell i {
@@ -188,6 +180,25 @@
 
         .notification-bell:hover i {
             transform: rotate(10deg);
+        }
+
+        .notification-badge {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            min-width: 18px;
+            height: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 9px;
+            background: #ff4757;
+            color: white;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 0 5px;
+            border: 2px solid var(--primary-gradient-start);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
         }
 
         .notification-dropdown {
@@ -399,6 +410,52 @@
             background: rgba(255, 255, 255, 0.2);
             transform: translateY(-2px);
         }
+
+        /* Profile Dropdown Styles */
+        .dropdown-menu {
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            padding: 0.5rem;
+            min-width: 200px;
+        }
+
+        .dropdown-item {
+            padding: 0.7rem 1rem;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+            color: #2d3436;
+            font-size: 0.9rem;
+        }
+
+        .dropdown-item:hover {
+            background-color: rgba(30,60,114,0.1);
+            transform: translateX(5px);
+        }
+
+        .dropdown-item i {
+            width: 20px;
+            text-align: center;
+            color: var(--primary-gradient-start);
+        }
+
+        .dropdown-item.text-danger i {
+            color: #ff4757;
+        }
+
+        .dropdown-item.text-danger:hover {
+            background-color: rgba(255,71,87,0.1);
+        }
+
+        .dropdown-divider {
+            margin: 0.5rem 0;
+            border-color: rgba(0,0,0,0.05);
+        }
+
+        /* Profile Icon Styles */
+        .nav-link .fa-user-circle {
+            font-size: 1.2rem;
+        }
     </style>
 </head>
 <body>
@@ -413,15 +470,52 @@
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav ms-auto">
                     {% if current_user.is_authenticated %}
+                        <!-- Notification Bell -->
+                        <li class="nav-item">
+                            <div class="notification-bell" onclick="toggleNotificationDropdown(event)">
+                                <i class="fas fa-bell"></i>
+                                <span class="notification-badge" id="notification-count"></span>
+                                <div class="notification-dropdown" id="notification-dropdown">
+                                    <div class="p-2 border-bottom">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <h6>Notifications</h6>
+                                            <a href="{{ url_for('notifications') }}">View All</a>
+                                        </div>
+                                    </div>
+                                    <div id="notification-list">
+                                        <!-- Notifications will be loaded here -->
+                                    </div>
+                                </div>
+                            </div>
+                        </li>
                         <li class="nav-item">
                             <a class="nav-link" href="{{ url_for('dashboard') }}">
                                 <i class="fas fa-tachometer-alt me-2"></i>Dashboard
                             </a>
                         </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('logout') }}">
-                                <i class="fas fa-sign-out-alt me-1"></i>Logout
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" id="profileDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="fas fa-user-circle me-1"></i>
+                                {{ current_user.username }}
                             </a>
+                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="profileDropdown">
+                                <li>
+                                    <a class="dropdown-item" href="{{ url_for('profile') }}">
+                                        <i class="fas fa-user me-2"></i>My Profile
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" href="{{ url_for('settings') }}">
+                                        <i class="fas fa-cog me-2"></i>Settings
+                                    </a>
+                                </li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <a class="dropdown-item text-danger" href="{{ url_for('logout') }}">
+                                        <i class="fas fa-sign-out-alt me-2"></i>Logout
+                                    </a>
+                                </li>
+                            </ul>
                         </li>
                     {% else %}
                         <li class="nav-item">
@@ -431,26 +525,6 @@
                         </li>
                     {% endif %}
                 </ul>
-                {% if current_user.is_authenticated %}
-                <div class="d-flex align-items-center">
-                    <!-- Notification Bell -->
-                    <div class="notification-bell" onclick="toggleNotificationDropdown(event)">
-                        <i class="fas fa-bell"></i>
-                        <span class="notification-badge" id="notification-count"></span>
-                        <div class="notification-dropdown" id="notification-dropdown">
-                            <div class="p-2 border-bottom">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <h6>Notifications</h6>
-                                    <a href="{{ url_for('notifications') }}">View All</a>
-                                </div>
-                            </div>
-                            <div id="notification-list">
-                                <!-- Notifications will be loaded here -->
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                {% endif %}
             </div>
         </div>
     </nav>
@@ -551,7 +625,14 @@
                         const item = document.createElement('div');
                         item.className = 'notification-item';
                         const icon = notification.type === 'birthday' ? 'fa-birthday-cake' : 
-                                   notification.type === 'anniversary' ? 'fa-heart' : 'fa-bell';
+                                   notification.type === 'anniversary' ? 'fa-heart' :
+                                   notification.type === 'new_member' ? 'fa-user-plus' :
+                                   notification.type === 'new_cell_team' ? 'fa-users' :
+                                   notification.type === 'new_appointment' ? 'fa-calendar-plus' :
+                                   notification.type === 'appointment_update' ? 'fa-calendar-check' :
+                                   notification.type === 'new_teaching_program' ? 'fa-chalkboard-teacher' :
+                                   notification.type === 'new_teacher_assigned' ? 'fa-user-graduate' :
+                                   notification.type === 'new_student_enrolled' ? 'fa-user-friends' : 'fa-bell';
                         item.innerHTML = `
                             <i class="fas ${icon}"></i>
                             <div class="notification-content">
@@ -600,12 +681,24 @@
             }
         });
 
-        // Load notifications immediately when the page loads
-        document.addEventListener('DOMContentLoaded', function() {
-            if (document.getElementById('notification-count')) {
-                loadNotifications();
-                // Update notifications every 30 seconds
-                setInterval(loadNotifications, 30000);
+        // Update notifications every 30 seconds
+        updateNotificationCount();
+        setInterval(updateNotificationCount, 30000);
+
+        // Mark notification as read when clicked
+        document.addEventListener('click', function(event) {
+            const notificationItem = event.target.closest('.notification-item');
+            if (notificationItem) {
+                const notificationId = notificationItem.dataset.id;
+                if (notificationId) {
+                    fetch(`/notifications/mark-read/${notificationId}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                updateNotificationCount();
+                            }
+                        });
+                }
             }
         });
     </script>

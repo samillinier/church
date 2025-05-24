@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, abort
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from datetime import datetime, timedelta
@@ -7,6 +7,9 @@ import os
 from werkzeug.utils import secure_filename
 import json
 import calendar
+from werkzeug.security import generate_password_hash, check_password_hash
+from functools import wraps
+import pytz
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-here'
@@ -23,11 +26,91 @@ cell_team_members = db.Table('cell_team_members',
     db.Column('member_id', db.Integer, db.ForeignKey('member.id'), primary_key=True)
 )
 
+# Role-based permissions
+ROLE_PERMISSIONS = {
+    'admin': [
+        'manage_users',
+        'manage_members',
+        'manage_cell_teams',
+        'manage_documents',
+        'create_documents',
+        'manage_marriages',
+        'manage_finances',
+        'manage_teaching',
+        'view_analytics',
+        'manage_appointments',
+        'approve_transactions',
+        'view_financial_reports'
+    ],
+    'finance_admin': [
+        'manage_finances',
+        'approve_transactions',
+        'view_financial_reports',
+        'manage_budgets',
+        'view_analytics',
+        'create_documents'
+    ],
+    'finance_officer': [
+        'record_transactions',
+        'view_financial_reports',
+        'view_budgets',
+        'view_analytics',
+        'create_documents'
+    ],
+    'coordinator': [
+        'view_members',
+        'manage_cell_teams',
+        'view_documents',
+        'create_documents',
+        'manage_teaching',
+        'view_analytics'
+    ],
+    'teacher': [
+        'view_members',
+        'view_cell_teams',
+        'view_documents',
+        'create_documents',
+        'manage_teaching_materials',
+        'view_teaching'
+    ],
+    'user': [
+        'view_members',
+        'view_cell_teams',
+        'view_documents',
+        'create_documents'
+    ]
+}
+
+def requires_permission(permission):
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            if not current_user.is_authenticated:
+                return redirect(url_for('login'))
+            
+            user_permissions = ROLE_PERMISSIONS.get(current_user.role, [])
+            if permission not in user_permissions:
+                flash('You do not have permission to access this feature.', 'error')
+                return redirect(url_for('dashboard'))
+            return f(*args, **kwargs)
+        return decorated_function
+    return decorator
+
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=True)
     password = db.Column(db.String(120), nullable=False)
-    is_admin = db.Column(db.Boolean, default=False)
+    role = db.Column(db.String(20), default='user')  # 'admin', 'coordinator', 'teacher', 'user'
+    is_active = db.Column(db.Boolean, default=True)
+    last_login = db.Column(db.DateTime)
+    timezone = db.Column(db.String(50), default='UTC')
+    
+    # Notification preferences
+    email_new_members = db.Column(db.Boolean, default=True)
+    email_appointments = db.Column(db.Boolean, default=True)
+    notify_cell_teams = db.Column(db.Boolean, default=True)
+    notify_documents = db.Column(db.Boolean, default=True)
 
 class CellTeam(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -37,6 +120,7 @@ class CellTeam(db.Model):
     meeting_time = db.Column(db.String(20))
     location = db.Column(db.String(200))
     description = db.Column(db.Text)
+    status = db.Column(db.String(20), default='active')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     # Relationships
@@ -62,6 +146,7 @@ class Member(db.Model):
     state = db.Column(db.String(100))
     postal_code = db.Column(db.String(20))
     date_joined = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
     membership_status = db.Column(db.String(50), default='Active')
     baptism_status = db.Column(db.Boolean, default=False)
     baptism_date = db.Column(db.Date)
@@ -234,7 +319,7 @@ class Budget(db.Model):
 
 @login_manager.user_loader
 def load_user(user_id):
-    return User.query.get(int(user_id))
+    return db.session.get(User, int(user_id))  # Updated to use session.get instead of query.get
 
 @app.route('/')
 def index():
@@ -247,10 +332,29 @@ def login():
         password = request.form.get('password')
         user = User.query.filter_by(username=username).first()
         
-        if user and user.password == password:
+        if user and check_password_hash(user.password, password):
             login_user(user)
+            user.last_login = datetime.now(pytz.UTC)
+            db.session.commit()
+            
+            # Create welcome notification for first login
+            if not Notification.query.filter_by(user_id=user.id, type='welcome').first():
+                notification = Notification(
+                    type='welcome',
+                    title='Welcome to EPAPHRA',
+                    message=f'Welcome {user.username} to your church management system!',
+                    date=datetime.now(pytz.UTC).date(),
+                    user_id=user.id,
+                    is_read=False
+                )
+                db.session.add(notification)
+                db.session.commit()
+            
+            next_page = request.args.get('next')
+            if next_page:
+                return redirect(next_page)
             return redirect(url_for('dashboard'))
-        flash('Invalid username or password')
+        flash('Invalid username or password', 'error')
     return render_template('login.html')
 
 @app.route('/register', methods=['GET', 'POST'])
@@ -335,6 +439,22 @@ def register():
         try:
             db.session.add(new_member)
             db.session.commit()
+
+            # Create notifications for all admin users
+            admin_users = User.query.filter_by(role='admin').all()
+            for admin in admin_users:
+                notification = Notification(
+                    type='new_member',
+                    title='New Member Registration',
+                    message=f'New member {first_name} {last_name} has registered.',
+                    date=datetime.utcnow().date(),
+                    user_id=admin.id,
+                    reference_id=new_member.id,
+                    is_read=False
+                )
+                db.session.add(notification)
+            db.session.commit()
+
             flash('Member registered successfully!')
             return redirect(url_for('dashboard'))
         except Exception as e:
@@ -345,6 +465,7 @@ def register():
 
 @app.route('/member/edit/<int:member_id>', methods=['GET', 'POST'])
 @login_required
+@requires_permission('manage_members')
 def edit_member(member_id):
     member = Member.query.get_or_404(member_id)
     
@@ -406,6 +527,7 @@ def edit_member(member_id):
 
 @app.route('/member/delete/<int:member_id>', methods=['POST'])
 @login_required
+@requires_permission('manage_members')
 def delete_member(member_id):
     member = Member.query.get_or_404(member_id)
     
@@ -447,6 +569,7 @@ def dashboard():
 
 @app.route('/member-analytics')
 @login_required
+@requires_permission('view_analytics')
 def member_analytics():
     # Get total members
     total_members = Member.query.count()
@@ -538,59 +661,84 @@ def cell_teams():
 
 @app.route('/cell-teams/create', methods=['GET', 'POST'])
 @login_required
+@requires_permission('manage_cell_teams')
 def create_cell_team():
     if request.method == 'POST':
         name = request.form.get('name')
+        leader_name = request.form.get('leader_name')
+        leader_contact = request.form.get('leader_contact')
         meeting_day = request.form.get('meeting_day')
         meeting_time = request.form.get('meeting_time')
         location = request.form.get('location')
         description = request.form.get('description')
-        member_ids = request.form.getlist('team_members')
-        
-        # Create a new member for the leader
-        leader = Member(
-            first_name=request.form.get('leader_first_name'),
-            last_name=request.form.get('leader_last_name'),
-            email=request.form.get('leader_email'),
-            phone=request.form.get('leader_phone'),
-            date_joined=datetime.utcnow(),
-            membership_status='Active'
-        )
+        status = request.form.get('status')
+        member_ids = request.form.getlist('member_ids[]')
         
         try:
-            # Add and commit the leader first to get their ID
-            db.session.add(leader)
-            db.session.commit()
+            # Create a new member for the leader if they don't exist
+            leader = Member.query.filter_by(
+                first_name=leader_name.split()[0],
+                last_name=' '.join(leader_name.split()[1:]) if len(leader_name.split()) > 1 else ''
+            ).first()
             
-            # Create the cell team with the new leader
+            if not leader:
+                leader = Member(
+                    first_name=leader_name.split()[0],
+                    last_name=' '.join(leader_name.split()[1:]) if len(leader_name.split()) > 1 else '',
+                    phone=leader_contact,
+                    email=f"{leader_name.lower().replace(' ', '.')}@example.com",  # Temporary email
+                    membership_status='Active'
+                )
+                db.session.add(leader)
+                db.session.flush()  # Get the leader ID
+            
+            # Create the cell team
             team = CellTeam(
                 name=name,
                 leader_id=leader.id,
                 meeting_day=meeting_day,
                 meeting_time=meeting_time,
                 location=location,
-                description=description
+                description=description,
+                status=status
             )
             
             db.session.add(team)
             
-            # Add selected members to the team
-            if member_ids:
-                members = Member.query.filter(Member.id.in_(member_ids)).all()
-                team.members.extend(members)
-            
-            # Add the leader as a team member as well
+            # Add the leader as a team member
             team.members.append(leader)
             
+            # Add selected members
+            if member_ids:
+                members = Member.query.filter(Member.id.in_(member_ids)).all()
+                for member in members:
+                    if member not in team.members:
+                        team.members.append(member)
+            
             db.session.commit()
+
+            # Create notifications for all admin users
+            admin_users = User.query.filter_by(role='admin').all()
+            for admin in admin_users:
+                notification = Notification(
+                    type='new_cell_team',
+                    title='New Cell Team Created',
+                    message=f'New cell team "{name}" has been created with leader {leader_name}.',
+                    date=datetime.utcnow().date(),
+                    user_id=admin.id,
+                    reference_id=team.id,
+                    is_read=False
+                )
+                db.session.add(notification)
+            db.session.commit()
+
             flash('Cell team created successfully!')
             return redirect(url_for('cell_teams'))
         except Exception as e:
             db.session.rollback()
             flash('Error creating cell team: ' + str(e))
     
-    members = Member.query.all()
-    return render_template('create_cell_team.html', members=members)
+    return render_template('create_cell_team.html')
 
 @app.route('/cell-teams/<int:team_id>')
 @login_required
@@ -662,7 +810,13 @@ def documents():
 
 @app.route('/documents/create', methods=['GET', 'POST'])
 @login_required
+@requires_permission('create_documents')
 def create_document():
+    if not any(perm in ROLE_PERMISSIONS.get(current_user.role, []) 
+               for perm in ['create_documents', 'manage_documents']):
+        flash('You do not have permission to create documents.', 'error')
+        return redirect(url_for('documents'))
+        
     if request.method == 'POST':
         title = request.form.get('title')
         document_type = request.form.get('document_type')
@@ -677,12 +831,12 @@ def create_document():
             # Secure the filename
             filename = secure_filename(file.filename)
             # Create uploads directory if it doesn't exist
-            uploads_dir = os.path.join(app.root_path, 'uploads')
+            uploads_dir = os.path.join(app.root_path, 'static', 'uploads', 'documents')
             if not os.path.exists(uploads_dir):
                 os.makedirs(uploads_dir)
             # Save the file
-            file_path = os.path.join('uploads', filename)
-            file.save(os.path.join(app.root_path, file_path))
+            file_path = os.path.join('uploads', 'documents', filename)
+            file.save(os.path.join(app.root_path, 'static', file_path))
         
         document = Document(
             title=title,
@@ -697,11 +851,11 @@ def create_document():
         try:
             db.session.add(document)
             db.session.commit()
-            flash('Document created successfully!')
+            flash('Document created successfully!', 'success')
             return redirect(url_for('documents'))
         except Exception as e:
             db.session.rollback()
-            flash('Error creating document: ' + str(e))
+            flash(f'Error creating document: {str(e)}', 'error')
     
     members = Member.query.all()
     return render_template('create_document.html', members=members)
@@ -1025,7 +1179,7 @@ def appointments():
         query = query.filter_by(date=date)
     
     # Get appointments
-    if current_user.is_admin:
+    if current_user.role == 'admin':
         appointments = query.order_by(Appointment.date.desc()).all()
     else:
         appointments = query.filter_by(counselor_id=current_user.id).order_by(Appointment.date.desc()).all()
@@ -1060,6 +1214,10 @@ def create_appointment():
             flash('This time slot is already booked. Please choose another time.')
             return redirect(url_for('create_appointment'))
         
+        # Get member and counselor details
+        member = Member.query.get(member_id)
+        counselor = User.query.get(counselor_id)
+        
         appointment = Appointment(
             member_id=member_id,
             counselor_id=counselor_id,
@@ -1075,6 +1233,34 @@ def create_appointment():
         try:
             db.session.add(appointment)
             db.session.commit()
+
+            # Create notification for the counselor
+            counselor_notification = Notification(
+                type='new_appointment',
+                title='New Counseling Appointment',
+                message=f'New {appointment_type} appointment with {member.first_name} {member.last_name} on {date.strftime("%B %d, %Y")} at {time}.',
+                date=date,
+                user_id=counselor_id,
+                reference_id=appointment.id,
+                is_read=False
+            )
+            db.session.add(counselor_notification)
+
+            # Create notifications for all admin users (except the counselor)
+            admin_users = User.query.filter(User.role == 'admin', User.id != counselor_id).all()
+            for admin in admin_users:
+                notification = Notification(
+                    type='new_appointment',
+                    title='New Counseling Appointment Scheduled',
+                    message=f'New {appointment_type} appointment scheduled with {member.first_name} {member.last_name} and {counselor.username} on {date.strftime("%B %d, %Y")} at {time}.',
+                    date=date,
+                    user_id=admin.id,
+                    reference_id=appointment.id,
+                    is_read=False
+                )
+                db.session.add(notification)
+            
+            db.session.commit()
             flash('Appointment scheduled successfully!')
             return redirect(url_for('appointments'))
         except Exception as e:
@@ -1082,7 +1268,7 @@ def create_appointment():
             flash('Error scheduling appointment: ' + str(e))
     
     # Get list of counselors for the form
-    counselors = User.query.filter_by(is_admin=True).all()
+    counselors = User.query.filter_by(role='admin').all()
     
     return render_template('create_appointment.html',
                          counselors=counselors)
@@ -1100,9 +1286,48 @@ def update_appointment_status(appointment_id):
     new_status = request.form.get('status')
     
     if new_status in ['Pending', 'Confirmed', 'Completed', 'Cancelled']:
+        old_status = appointment.status
         appointment.status = new_status
-        db.session.commit()
-        flash('Appointment status updated successfully!')
+        
+        # Get member and counselor details
+        member = Member.query.get(appointment.member_id)
+        counselor = User.query.get(appointment.counselor_id)
+        
+        try:
+            db.session.commit()
+
+            # Create notification for the counselor
+            if counselor.id != current_user.id:  # Don't notify if the counselor made the change
+                notification = Notification(
+                    type='appointment_update',
+                    title='Appointment Status Updated',
+                    message=f'Appointment with {member.first_name} {member.last_name} on {appointment.date.strftime("%B %d, %Y")} has been {new_status.lower()}.',
+                    date=appointment.date,
+                    user_id=counselor.id,
+                    reference_id=appointment.id,
+                    is_read=False
+                )
+                db.session.add(notification)
+
+            # Create notifications for all admin users (except the person who made the change)
+            admin_users = User.query.filter(User.role == 'admin', User.id != current_user.id).all()
+            for admin in admin_users:
+                notification = Notification(
+                    type='appointment_update',
+                    title='Appointment Status Updated',
+                    message=f'Appointment between {member.first_name} {member.last_name} and {counselor.username} has been {new_status.lower()}.',
+                    date=appointment.date,
+                    user_id=admin.id,
+                    reference_id=appointment.id,
+                    is_read=False
+                )
+                db.session.add(notification)
+            
+            db.session.commit()
+            flash('Appointment status updated successfully!')
+        except Exception as e:
+            db.session.rollback()
+            flash('Error updating appointment status: ' + str(e))
     
     return redirect(url_for('appointment_details', appointment_id=appointment_id))
 
@@ -1123,7 +1348,7 @@ def check_upcoming_events():
     ).all()
     
     # Create notifications for staff
-    staff_users = User.query.filter_by(is_admin=True).all()
+    staff_users = User.query.filter_by(role='admin').all()
     
     for member in upcoming_birthdays:
         birthday = member.date_of_birth.replace(year=today.year)
@@ -1183,6 +1408,7 @@ def before_request():
 
 @app.route('/finance')
 @login_required
+@requires_permission('manage_finances')
 def finance_dashboard():
     # Get summary statistics
     total_income = db.session.query(db.func.sum(FinanceTransaction.amount)).\
@@ -1220,6 +1446,7 @@ def finance_dashboard():
 
 @app.route('/finance/transactions')
 @login_required
+@requires_permission('record_transactions')
 def finance_transactions():
     page = request.args.get('page', 1, type=int)
     transaction_type = request.args.get('type', 'all')
@@ -1250,6 +1477,7 @@ def finance_transactions():
 
 @app.route('/finance/transactions/create', methods=['GET', 'POST'])
 @login_required
+@requires_permission('record_transactions')
 def create_transaction():
     if request.method == 'POST':
         category_id = request.form.get('category_id')
@@ -1268,7 +1496,8 @@ def create_transaction():
             reference_number=reference_number,
             description=description,
             transaction_date=transaction_date,
-            recorded_by=current_user.id
+            recorded_by=current_user.id,
+            status='pending' if current_user.role == 'finance_officer' else 'completed'
         )
         
         # Additional fields for offerings/tithes
@@ -1285,6 +1514,22 @@ def create_transaction():
         
         try:
             db.session.add(transaction)
+            
+            # Create notification for finance admins if transaction needs approval
+            if transaction.status == 'pending':
+                finance_admins = User.query.filter(User.role.in_(['admin', 'finance_admin'])).all()
+                for admin in finance_admins:
+                    notification = Notification(
+                        type='transaction_approval',
+                        title='New Transaction Needs Approval',
+                        message=f'New {transaction_type} transaction of {amount} needs approval.',
+                        date=datetime.utcnow().date(),
+                        user_id=admin.id,
+                        reference_id=transaction.id,
+                        is_read=False
+                    )
+                    db.session.add(notification)
+            
             db.session.commit()
             flash('Transaction recorded successfully!')
             return redirect(url_for('finance_transactions'))
@@ -1295,14 +1540,38 @@ def create_transaction():
     categories = FinanceCategory.query.all()
     return render_template('finance/create_transaction.html', categories=categories)
 
+@app.route('/finance/transactions/<int:transaction_id>/approve', methods=['POST'])
+@login_required
+@requires_permission('approve_transactions')
+def approve_transaction(transaction_id):
+    transaction = FinanceTransaction.query.get_or_404(transaction_id)
+    
+    if transaction.status != 'pending':
+        flash('Transaction is not pending approval.', 'error')
+        return redirect(url_for('finance_transactions'))
+    
+    try:
+        transaction.status = 'completed'
+        transaction.approved_by = current_user.id
+        transaction.approval_date = datetime.utcnow()
+        db.session.commit()
+        flash('Transaction approved successfully!')
+    except Exception as e:
+        db.session.rollback()
+        flash('Error approving transaction: ' + str(e))
+    
+    return redirect(url_for('finance_transactions'))
+
 @app.route('/finance/reports')
 @login_required
+@requires_permission('view_financial_reports')
 def finance_reports():
     reports = FinancialReport.query.order_by(FinancialReport.generated_at.desc()).all()
     return render_template('finance/reports.html', reports=reports)
 
 @app.route('/finance/reports/generate', methods=['GET', 'POST'])
 @login_required
+@requires_permission('view_financial_reports')
 def generate_report():
     if request.method == 'POST':
         report_type = request.form.get('report_type')
@@ -1353,35 +1622,9 @@ def generate_report():
     
     return render_template('finance/generate_report.html')
 
-@app.route('/finance/categories')
-@login_required
-def finance_categories():
-    categories = FinanceCategory.query.all()
-    return render_template('finance/categories.html', categories=categories)
-
-@app.route('/finance/categories/create', methods=['GET', 'POST'])
-@login_required
-def create_category():
-    if request.method == 'POST':
-        category = FinanceCategory(
-            name=request.form.get('name'),
-            type=request.form.get('type'),
-            description=request.form.get('description')
-        )
-        
-        try:
-            db.session.add(category)
-            db.session.commit()
-            flash('Category created successfully!')
-            return redirect(url_for('finance_categories'))
-        except Exception as e:
-            db.session.rollback()
-            flash('Error creating category: ' + str(e))
-    
-    return render_template('finance/create_category.html')
-
 @app.route('/finance/budgets')
 @login_required
+@requires_permission('view_budgets')
 def budgets():
     current_year = datetime.utcnow().year
     selected_year = request.args.get('year', current_year, type=int)
@@ -1408,6 +1651,7 @@ def budgets():
 
 @app.route('/finance/budgets/create', methods=['GET', 'POST'])
 @login_required
+@requires_permission('manage_budgets')
 def create_budget():
     if request.method == 'POST':
         budget = Budget(
@@ -1436,6 +1680,22 @@ def create_budget():
 @app.template_filter('month_name')
 def month_name_filter(month_number):
     return calendar.month_name[month_number] if month_number else ''
+
+@app.template_filter('from_json')
+def from_json_filter(value):
+    """Convert a JSON string to Python object"""
+    try:
+        return json.loads(value) if value else []
+    except:
+        return []
+
+@app.context_processor
+def inject_permissions():
+    return {'ROLE_PERMISSIONS': ROLE_PERMISSIONS}
+
+@app.context_processor
+def inject_now():
+    return {'now': datetime.utcnow()}
 
 # Teaching Service Models
 class TeachingProgram(db.Model):
@@ -1547,8 +1807,10 @@ def teaching_programs():
 
 @app.route('/teaching/programs/create', methods=['GET', 'POST'])
 @login_required
+@requires_permission('manage_teaching')
 def create_program():
     if request.method == 'POST':
+        coordinator = Member.query.get(request.form.get('coordinator_id'))
         program = TeachingProgram(
             name=request.form.get('name'),
             program_type=request.form.get('program_type'),
@@ -1556,12 +1818,28 @@ def create_program():
             age_group=request.form.get('age_group'),
             schedule=request.form.get('schedule'),
             location=request.form.get('location'),
-            coordinator_id=request.form.get('coordinator_id')
+            coordinator_id=coordinator.id
         )
         
         try:
             db.session.add(program)
             db.session.commit()
+
+            # Create notifications for all admin users
+            admin_users = User.query.filter_by(role='admin').all()
+            for admin in admin_users:
+                notification = Notification(
+                    type='new_teaching_program',
+                    title='New Teaching Program Created',
+                    message=f'New {program.program_type} program "{program.name}" has been created, coordinated by {coordinator.first_name} {coordinator.last_name}.',
+                    date=datetime.utcnow().date(),
+                    user_id=admin.id,
+                    reference_id=program.id,
+                    is_read=False
+                )
+                db.session.add(notification)
+            db.session.commit()
+
             flash('Program created successfully!')
             return redirect(url_for('teaching_programs'))
         except Exception as e:
@@ -1582,9 +1860,11 @@ def teaching_teachers():
 @login_required
 def assign_teacher():
     if request.method == 'POST':
-        teacher = TeachingTeacher(
-            program_id=request.form.get('program_id'),
-            teacher_id=request.form.get('teacher_id'),
+        program = TeachingProgram.query.get(request.form.get('program_id'))
+        teacher = Member.query.get(request.form.get('teacher_id'))
+        teacher_role = TeachingTeacher(
+            program_id=program.id,
+            teacher_id=teacher.id,
             role=request.form.get('role'),
             start_date=datetime.strptime(request.form.get('start_date'), '%Y-%m-%d').date(),
             end_date=datetime.strptime(request.form.get('end_date'), '%Y-%m-%d').date() if request.form.get('end_date') else None,
@@ -1592,8 +1872,37 @@ def assign_teacher():
         )
         
         try:
-            db.session.add(teacher)
+            db.session.add(teacher_role)
             db.session.commit()
+
+            # Create notification for program coordinator
+            if program.coordinator_id:
+                coordinator_notification = Notification(
+                    type='new_teacher_assigned',
+                    title='New Teacher Assigned',
+                    message=f'{teacher.first_name} {teacher.last_name} has been assigned as {teacher_role.role} to {program.name}.',
+                    date=teacher_role.start_date,
+                    user_id=program.coordinator_id,
+                    reference_id=teacher_role.id,
+                    is_read=False
+                )
+                db.session.add(coordinator_notification)
+
+            # Create notifications for all admin users
+            admin_users = User.query.filter_by(role='admin').all()
+            for admin in admin_users:
+                notification = Notification(
+                    type='new_teacher_assigned',
+                    title='New Teacher Assigned',
+                    message=f'{teacher.first_name} {teacher.last_name} has been assigned as {teacher_role.role} to {program.name}.',
+                    date=teacher_role.start_date,
+                    user_id=admin.id,
+                    reference_id=teacher_role.id,
+                    is_read=False
+                )
+                db.session.add(notification)
+            db.session.commit()
+
             flash('Teacher assigned successfully!')
             return redirect(url_for('teaching_teachers'))
         except Exception as e:
@@ -1615,9 +1924,11 @@ def teaching_students():
 @login_required
 def enroll_student():
     if request.method == 'POST':
-        student = TeachingStudent(
-            program_id=request.form.get('program_id'),
-            student_id=request.form.get('student_id'),
+        program = TeachingProgram.query.get(request.form.get('program_id'))
+        student = Member.query.get(request.form.get('student_id'))
+        enrollment = TeachingStudent(
+            program_id=program.id,
+            student_id=student.id,
             parent_contact=request.form.get('parent_contact'),
             emergency_contact=request.form.get('emergency_contact'),
             medical_info=request.form.get('medical_info'),
@@ -1625,8 +1936,51 @@ def enroll_student():
         )
         
         try:
-            db.session.add(student)
+            db.session.add(enrollment)
             db.session.commit()
+
+            # Create notification for program coordinator
+            if program.coordinator_id:
+                coordinator_notification = Notification(
+                    type='new_student_enrolled',
+                    title='New Student Enrolled',
+                    message=f'{student.first_name} {student.last_name} has enrolled in {program.name}.',
+                    date=enrollment.enrollment_date,
+                    user_id=program.coordinator_id,
+                    reference_id=enrollment.id,
+                    is_read=False
+                )
+                db.session.add(coordinator_notification)
+
+            # Create notifications for program teachers
+            for teacher_role in program.teachers:
+                if teacher_role.status == 'active':
+                    notification = Notification(
+                        type='new_student_enrolled',
+                        title='New Student Enrolled',
+                        message=f'{student.first_name} {student.last_name} has enrolled in {program.name}.',
+                        date=enrollment.enrollment_date,
+                        user_id=teacher_role.teacher_id,
+                        reference_id=enrollment.id,
+                        is_read=False
+                    )
+                    db.session.add(notification)
+
+            # Create notifications for all admin users
+            admin_users = User.query.filter_by(role='admin').all()
+            for admin in admin_users:
+                notification = Notification(
+                    type='new_student_enrolled',
+                    title='New Student Enrolled',
+                    message=f'{student.first_name} {student.last_name} has enrolled in {program.name}.',
+                    date=enrollment.enrollment_date,
+                    user_id=admin.id,
+                    reference_id=enrollment.id,
+                    is_read=False
+                )
+                db.session.add(notification)
+            db.session.commit()
+
             flash('Student enrolled successfully!')
             return redirect(url_for('teaching_students'))
         except Exception as e:
@@ -1715,40 +2069,330 @@ def create_event():
     coordinators = Member.query.all()
     return render_template('teaching/create_event.html', programs=programs, coordinators=coordinators)
 
-@app.context_processor
-def inject_now():
-    return {'now': datetime.utcnow()}
+@app.route('/profile')
+@login_required
+def profile():
+    # Get counts for quick stats
+    member_count = Member.query.count()
+    cell_team_count = CellTeam.query.count()
+    program_count = TeachingProgram.query.count()
+    
+    # Get recent activities (last 5)
+    recent_activities = []
+    
+    # Add member registrations
+    recent_members = Member.query.order_by(Member.date_joined.desc()).limit(5).all()
+    for member in recent_members:
+        recent_activities.append({
+            'icon': 'fa-user-plus',
+            'title': 'New Member Registration',
+            'description': f'Added {member.first_name} {member.last_name}',
+            'timestamp': member.date_joined.strftime('%Y-%m-%d %H:%M') if member.date_joined else 'N/A'
+        })
+    
+    # Add cell team creations
+    recent_teams = CellTeam.query.order_by(CellTeam.created_at.desc()).limit(5).all()
+    for team in recent_teams:
+        recent_activities.append({
+            'icon': 'fa-users',
+            'title': 'New Cell Team Created',
+            'description': f'Created team: {team.name}',
+            'timestamp': team.created_at.strftime('%Y-%m-%d %H:%M') if team.created_at else 'N/A'
+        })
+    
+    # Add recent programs
+    recent_programs = TeachingProgram.query.order_by(TeachingProgram.created_at.desc()).limit(5).all()
+    for program in recent_programs:
+        recent_activities.append({
+            'icon': 'fa-chalkboard-teacher',
+            'title': 'New Teaching Program',
+            'description': f'Added program: {program.name}',
+            'timestamp': program.created_at.strftime('%Y-%m-%d %H:%M') if program.created_at else 'N/A'
+        })
+    
+    # Sort all activities by timestamp and get the 5 most recent
+    recent_activities = [activity for activity in recent_activities if activity['timestamp'] != 'N/A']
+    recent_activities.sort(key=lambda x: datetime.strptime(x['timestamp'], '%Y-%m-%d %H:%M'), reverse=True)
+    recent_activities = recent_activities[:5]
+    
+    return render_template('profile.html',
+                         member_count=member_count,
+                         cell_team_count=cell_team_count,
+                         program_count=program_count,
+                         recent_activities=recent_activities)
 
-if __name__ == '__main__':
-    with app.app_context():
+@app.route('/profile/edit', methods=['GET', 'POST'])
+@login_required
+def edit_profile():
+    if request.method == 'POST':
+        username = request.form.get('username')
+        email = request.form.get('email')
+        role = request.form.get('role')
+        
+        # Check if username already exists
+        if username != current_user.username:
+            existing_user = User.query.filter_by(username=username).first()
+            if existing_user:
+                flash('Username already exists. Please choose another one.', 'error')
+                return redirect(url_for('edit_profile'))
+        
+        try:
+            current_user.username = username
+            current_user.email = email
+            current_user.role = role
+            # Update is_admin based on role
+            current_user.is_admin = (role == 'admin')
+            
+            db.session.commit()
+            flash('Profile updated successfully!', 'success')
+            return redirect(url_for('profile'))
+        except Exception as e:
+            db.session.rollback()
+            flash('Error updating profile: ' + str(e), 'error')
+    
+    # Get available roles
+    roles = ['admin', 'coordinator', 'teacher', 'user']
+    return render_template('edit_profile.html', roles=roles)
+
+@app.route('/profile/change-password', methods=['GET', 'POST'])
+@login_required
+def change_password():
+    if request.method == 'POST':
+        current_password = request.form.get('current_password')
+        new_password = request.form.get('new_password')
+        confirm_password = request.form.get('confirm_password')
+        
+        # Verify current password
+        if not check_password_hash(current_user.password, current_password):
+            flash('Current password is incorrect.', 'error')
+            return redirect(url_for('change_password'))
+        
+        # Check if new passwords match
+        if new_password != confirm_password:
+            flash('New passwords do not match.', 'error')
+            return redirect(url_for('change_password'))
+        
+        try:
+            current_user.password = generate_password_hash(new_password)
+            db.session.commit()
+            flash('Password changed successfully!', 'success')
+            return redirect(url_for('profile'))
+        except Exception as e:
+            db.session.rollback()
+            flash('Error changing password: ' + str(e), 'error')
+    
+    return render_template('change_password.html')
+
+@app.route('/settings')
+@login_required
+def settings():
+    staff_members = None
+    if current_user.role == 'admin':
+        staff_members = User.query.filter(User.id != current_user.id).all()
+    return render_template('settings.html', staff_members=staff_members)
+
+@app.route('/settings/profile', methods=['POST'])
+@login_required
+def update_profile_settings():
+    username = request.form.get('username')
+    email = request.form.get('email')
+    timezone = request.form.get('timezone')
+    
+    try:
+        # Check if username is taken
+        if username != current_user.username:
+            existing_user = User.query.filter_by(username=username).first()
+            if existing_user:
+                flash('Username already taken', 'error')
+                return redirect(url_for('settings'))
+        
+        current_user.username = username
+        current_user.email = email
+        current_user.timezone = timezone
+        db.session.commit()
+        flash('Profile settings updated successfully', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash('Error updating profile settings', 'error')
+    
+    return redirect(url_for('settings'))
+
+@app.route('/settings/notifications', methods=['POST'])
+@login_required
+def update_notification_settings():
+    if current_user.role not in ['admin', 'coordinator']:
+        abort(403)
+    
+    try:
+        current_user.email_new_members = bool(request.form.get('email_new_members'))
+        current_user.email_appointments = bool(request.form.get('email_appointments'))
+        current_user.notify_cell_teams = bool(request.form.get('notify_cell_teams'))
+        current_user.notify_documents = bool(request.form.get('notify_documents'))
+        db.session.commit()
+        flash('Notification settings updated successfully', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash('Error updating notification settings', 'error')
+    
+    return redirect(url_for('settings'))
+
+@app.route('/settings/staff/add', methods=['POST'])
+@login_required
+def add_staff():
+    if current_user.role != 'admin':
+        abort(403)
+    
+    username = request.form.get('username')
+    email = request.form.get('email')
+    role = request.form.get('role')
+    password = request.form.get('password')
+    
+    try:
+        # Check if username or email already exists
+        if User.query.filter((User.username == username) | (User.email == email)).first():
+            flash('Username or email already exists', 'error')
+            return redirect(url_for('settings'))
+        
+        new_staff = User(
+            username=username,
+            email=email,
+            role=role,
+            password=generate_password_hash(password),
+            is_active=True,
+            timezone='UTC'
+        )
+        db.session.add(new_staff)
+        db.session.commit()
+        flash('Staff member added successfully', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash('Error adding staff member', 'error')
+    
+    return redirect(url_for('settings'))
+
+@app.route('/settings/staff/<int:staff_id>/delete', methods=['POST'])
+@login_required
+def delete_staff(staff_id):
+    if current_user.role != 'admin':
+        abort(403)
+    
+    try:
+        staff = User.query.get_or_404(staff_id)
+        if staff.role == 'admin':
+            flash('Cannot delete admin user', 'error')
+            return redirect(url_for('settings'))
+        
+        db.session.delete(staff)
+        db.session.commit()
+        flash('Staff member deleted successfully', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash('Error deleting staff member', 'error')
+    
+    return redirect(url_for('settings'))
+
+@app.route('/finance/categories')
+@login_required
+@requires_permission('manage_finances')
+def finance_categories():
+    categories = FinanceCategory.query.all()
+    return render_template('finance/categories.html', categories=categories)
+
+@app.route('/finance/categories/create', methods=['GET', 'POST'])
+@login_required
+@requires_permission('manage_finances')
+def create_category():
+    if request.method == 'POST':
+        category = FinanceCategory(
+            name=request.form.get('name'),
+            type=request.form.get('type'),
+            description=request.form.get('description')
+        )
+        
+        try:
+            db.session.add(category)
+            db.session.commit()
+            flash('Category created successfully!')
+            return redirect(url_for('finance_categories'))
+        except Exception as e:
+            db.session.rollback()
+            flash('Error creating category: ' + str(e))
+    
+    return render_template('finance/create_category.html')
+
+def init_db():
+    try:
         # Drop all tables
         db.drop_all()
+        print("Existing tables dropped successfully")
+    except Exception as e:
+        print("Error dropping tables:", str(e))
+    
+    try:
         # Create all tables
         db.create_all()
+        print("New tables created successfully")
         
-        # Create admin user if it doesn't exist
+        # Create initial users for different roles
+        users = [
+            {
+                'username': 'admin',
+                'password': generate_password_hash('admin123'),
+                'role': 'admin',
+                'email': 'admin@example.com',
+                'is_active': True,
+                'timezone': 'UTC'
+            },
+            {
+                'username': 'finance_admin',
+                'password': generate_password_hash('finance123'),
+                'role': 'finance_admin',
+                'email': 'finance.admin@example.com',
+                'is_active': True,
+                'timezone': 'UTC'
+            },
+            {
+                'username': 'finance_officer',
+                'password': generate_password_hash('finance123'),
+                'role': 'finance_officer',
+                'email': 'finance.officer@example.com',
+                'is_active': True,
+                'timezone': 'UTC'
+            }
+        ]
+        
+        for user_data in users:
+            user = User.query.filter_by(username=user_data['username']).first()
+            if not user:
+                user = User(**user_data)
+                db.session.add(user)
+                print(f"Created user: {user_data['username']}")
+        
+        db.session.commit()
+        print("Initial users created successfully")
+        
+        # Create welcome notification for admin
         admin = User.query.filter_by(username='admin').first()
-        if not admin:
-            admin = User(username='admin', password='admin123', is_admin=True)
-            db.session.add(admin)
-            
-            # Create a test notification for the admin
+        if admin:
             notification = Notification(
                 type='welcome',
                 title='Welcome to EPAPHRA',
                 message='Welcome to your church management system!',
-                date=datetime.utcnow().date(),
-                user_id=1,  # This will be the admin's ID
-                is_read=False,
-                created_at=datetime.utcnow()
+                date=datetime.now(pytz.UTC).date(),
+                user_id=admin.id,
+                is_read=False
             )
             db.session.add(notification)
-            
-            try:
-                db.session.commit()
-                print("Database initialized successfully with admin user and test notification")
-            except Exception as e:
-                db.session.rollback()
-                print("Error initializing database:", str(e))
+            db.session.commit()
+            print("Welcome notification created")
+        
+        print("Database initialized successfully!")
+    except Exception as e:
+        db.session.rollback()
+        print("Error initializing database:", str(e))
+
+if __name__ == '__main__':
+    with app.app_context():
+        init_db()
     
-    app.run(debug=True, port=3001) 
+    app.run(debug=True, port=3002) 

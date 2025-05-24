@@ -4,7 +4,6 @@ __pycache__/
 *$py.class
 *.so
 .Python
-env/
 build/
 develop-eggs/
 dist/
@@ -24,10 +23,7 @@ wheels/
 # Virtual Environment
 venv/
 ENV/
-
-# Database
-*.db
-*.sqlite3
+env/
 
 # IDE
 .idea/
@@ -35,12 +31,19 @@ ENV/
 *.swp
 *.swo
 
-# Uploads
-static/uploads/
-uploads/
+# Database
+*.db
+*.sqlite3
 
 # Logs
 *.log
+
+# Environment variables
+.env
+
+# Uploaded files
+static/uploads/
+uploads/
 
 # OS generated files
 .DS_Store
