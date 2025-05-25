@@ -795,6 +795,36 @@ def remove_team_member(team_id, member_id):
     
     return redirect(url_for('cell_team_details', team_id=team_id))
 
+@app.route('/cell-teams/<int:team_id>/delete', methods=['POST'])
+@login_required
+@requires_permission('manage_cell_teams')
+def delete_cell_team(team_id):
+    team = CellTeam.query.get_or_404(team_id)
+    
+    try:
+        # Create notification for admins about the deletion
+        admin_users = User.query.filter_by(role='admin').all()
+        for admin in admin_users:
+            notification = Notification(
+                type='cell_team_deleted',
+                title='Cell Team Deleted',
+                message=f'Cell team "{team.name}" has been deleted.',
+                date=datetime.utcnow().date(),
+                user_id=admin.id,
+                is_read=False
+            )
+            db.session.add(notification)
+        
+        # Delete the team
+        db.session.delete(team)
+        db.session.commit()
+        flash('Cell team deleted successfully!', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash('Error deleting cell team: ' + str(e), 'error')
+    
+    return redirect(url_for('cell_teams'))
+
 @app.route('/documents')
 @login_required
 def documents():
@@ -1690,7 +1720,7 @@ def create_budget():
     current_year = datetime.utcnow().year
     return render_template('finance/create_budget.html', categories=categories, current_year=current_year)
 
-@app.route('/finance/budgets/<int:budget_id>/edit', methods=['GET', 'POST'])
+@app.route('/finance/budgets/<int:budget_id>/edit', methods=['POST'])
 @login_required
 @requires_permission('manage_budgets')
 def edit_budget(budget_id):
@@ -1711,10 +1741,14 @@ def edit_budget(budget_id):
     
     return redirect(url_for('budgets'))
 
-# Add this after creating the Flask app
 @app.template_filter('month_name')
 def month_name_filter(month_number):
     return calendar.month_name[month_number] if month_number else ''
+
+@app.template_filter('map_role_permissions')
+def map_role_permissions(role):
+    """Get permissions for a given role"""
+    return ROLE_PERMISSIONS.get(role, [])
 
 @app.template_filter('from_json')
 def from_json_filter(value):
@@ -2400,75 +2434,124 @@ def edit_category(category_id):
             
     return render_template('finance/edit_category.html', category=category)
 
-def init_db():
-    try:
-        # Drop all tables
-        db.drop_all()
-        print("Existing tables dropped successfully")
-    except Exception as e:
-        print("Error dropping tables:", str(e))
+@login_manager.user_loader
+def load_user(user_id):
+    return db.session.get(User, int(user_id))  # Updated to use session.get instead of query.get
+
+@app.route('/settings/staff/<int:staff_id>', methods=['GET'])
+@login_required
+def get_staff(staff_id):
+    if current_user.role != 'admin':
+        abort(403)
+    
+    staff = User.query.get_or_404(staff_id)
+    return jsonify({
+        'username': staff.username,
+        'email': staff.email,
+        'role': staff.role,
+        'is_active': staff.is_active
+    })
+
+@app.route('/settings/staff/<int:staff_id>/edit', methods=['POST'])
+@login_required
+def edit_staff(staff_id):
+    if current_user.role != 'admin':
+        abort(403)
+    
+    staff = User.query.get_or_404(staff_id)
     
     try:
-        # Create all tables
-        db.create_all()
-        print("New tables created successfully")
+        # Check if username or email already exists for other users
+        existing_user = User.query.filter(
+            (User.username == request.form.get('username')) | 
+            (User.email == request.form.get('email')),
+            User.id != staff_id
+        ).first()
         
-        # Create initial users for different roles
-        users = [
-            {
-                'username': 'admin',
-                'email': 'admin@example.com',
-                'role': 'admin',
-                'is_admin': True
-            },
-            {
-                'username': 'finance_admin',
-                'email': 'finance.admin@example.com',
-                'role': 'finance_admin'
-            },
-            {
-                'username': 'finance_officer',
-                'email': 'finance.officer@example.com',
-                'role': 'finance_officer'
-            }
-        ]
+        if existing_user:
+            flash('Username or email already exists', 'error')
+            return redirect(url_for('settings'))
         
-        for user_data in users:
-            user = User.query.filter_by(username=user_data['username']).first()
-            if not user:
-                user = User(**user_data)
-                if user_data['username'] == 'admin':
-                    user.set_password('admin123')
-                else:
-                    user.set_password('finance123')
-                db.session.add(user)
-                print(f"Created user: {user_data['username']}")
+        staff.username = request.form.get('username')
+        staff.email = request.form.get('email')
+        staff.role = request.form.get('role')
+        staff.is_active = request.form.get('is_active') == 'true'
         
         db.session.commit()
-        print("Initial users created successfully")
-        
-        # Create welcome notification for admin
-        admin = User.query.filter_by(username='admin').first()
-        if admin:
-            notification = Notification(
-                type='welcome',
-                title='Welcome to EPAPHRA',
-                message='Welcome to your church management system!',
-                date=datetime.now(pytz.UTC).date(),
-                user_id=admin.id,
-                is_read=False
-            )
-            db.session.add(notification)
-            db.session.commit()
-            print("Welcome notification created")
-        
-        print("Database initialized successfully!")
+        flash('Staff member updated successfully', 'success')
     except Exception as e:
         db.session.rollback()
-        print("Error initializing database:", str(e))
+        flash('Error updating staff member', 'error')
+    
+    return redirect(url_for('settings'))
 
 if __name__ == '__main__':
     with app.app_context():
-        init_db()
+        try:
+            # Drop existing tables
+            db.drop_all()
+            print("Existing tables dropped successfully")
+            
+            # Create new tables
+            db.create_all()
+            print("New tables created successfully")
+            
+            # Create initial users
+            admin = User(
+                username='admin',
+                email='admin@epaphra.com',
+                first_name='Admin',
+                last_name='User',
+                role='admin',
+                is_admin=True
+            )
+            admin.set_password('admin123')
+            
+            finance_admin = User(
+                username='finance_admin',
+                email='finance.admin@epaphra.com',
+                first_name='Finance',
+                last_name='Admin',
+                role='finance_admin'
+            )
+            finance_admin.set_password('finance123')
+            
+            finance_officer = User(
+                username='finance_officer',
+                email='finance.officer@epaphra.com',
+                first_name='Finance',
+                last_name='Officer',
+                role='finance_officer'
+            )
+            finance_officer.set_password('finance123')
+            
+            # Add users to database
+            db.session.add(admin)
+            db.session.add(finance_admin)
+            db.session.add(finance_officer)
+            db.session.commit()
+            
+            print("Created user: admin")
+            print("Created user: finance_admin")
+            print("Created user: finance_officer")
+            print("Initial users created successfully")
+            
+            # Create welcome notification for admin
+            welcome = Notification(
+                type='system',
+                title='Welcome to EPAPHRA',
+                message='Welcome to the church management system. Start by exploring the dashboard.',
+                date=datetime.now(),
+                user_id=admin.id,
+                is_read=False
+            )
+            db.session.add(welcome)
+            db.session.commit()
+            print("Welcome notification created")
+            print("Database initialized successfully!")
+            
+        except Exception as e:
+            print("Error initializing database:", str(e))
+            db.session.rollback()
     
-    app.run(debug=True, port=3002) 
+    app.run(debug=True, port=3009) 

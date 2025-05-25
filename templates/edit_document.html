@@ -6,61 +6,46 @@
         <div class="col-12 col-xl-10">
             <div class="card shadow-sm">
                 <div class="card-header bg-white py-3">
-                    <h4 class="card-title mb-0">Create Cell Team</h4>
+                    <h4 class="card-title mb-0">Edit Document</h4>
                 </div>
                 <div class="card-body p-4">
-                    <form method="POST" action="{{ url_for('create_cell_team') }}" class="needs-validation" novalidate>
+                    <form method="POST" action="{{ url_for('edit_document', doc_id=document.id) }}" class="needs-validation" novalidate enctype="multipart/form-data">
                         <div class="row">
                             <div class="col-md-6 mb-4">
-                                <label class="form-label">Team Name</label>
-                                <input type="text" class="form-control" name="name" required 
-                                       placeholder="Enter team name">
-                                <div class="invalid-feedback">Please enter a team name</div>
+                                <label class="form-label">Title</label>
+                                <input type="text" class="form-control" name="title" required 
+                                       value="{{ document.title }}" placeholder="Enter document title">
+                                <div class="invalid-feedback">Please enter a title</div>
                             </div>
                             
                             <div class="col-md-6 mb-4">
-                                <label class="form-label">Leader Name</label>
-                                <input type="text" class="form-control" name="leader_name" required
-                                       placeholder="Enter leader's full name">
-                                <div class="invalid-feedback">Please enter leader's name</div>
-                            </div>
-
-                            <div class="col-md-6 mb-4">
-                                <label class="form-label">Leader Contact</label>
-                                <input type="text" class="form-control" name="leader_contact"
-                                       placeholder="Enter leader's contact info">
-                            </div>
-
-                            <div class="col-md-6 mb-4">
-                                <label class="form-label">Meeting Day</label>
-                                <select class="form-select" name="meeting_day" required>
-                                    <option value="" disabled selected>Select meeting day</option>
-                                    <option value="Monday">Monday</option>
-                                    <option value="Tuesday">Tuesday</option>
-                                    <option value="Wednesday">Wednesday</option>
-                                    <option value="Thursday">Thursday</option>
-                                    <option value="Friday">Friday</option>
-                                    <option value="Saturday">Saturday</option>
-                                    <option value="Sunday">Sunday</option>
+                                <label class="form-label">Document Type</label>
+                                <select class="form-select" name="document_type" required>
+                                    <option value="" disabled>Select document type</option>
+                                    <option value="certificate" {% if document.document_type == 'certificate' %}selected{% endif %}>Certificate</option>
+                                    <option value="letter" {% if document.document_type == 'letter' %}selected{% endif %}>Letter</option>
+                                    <option value="report" {% if document.document_type == 'report' %}selected{% endif %}>Report</option>
+                                    <option value="other" {% if document.document_type == 'other' %}selected{% endif %}>Other</option>
                                 </select>
-                                <div class="invalid-feedback">Please select a meeting day</div>
-                            </div>
-
-                            <div class="col-md-6 mb-4">
-                                <label class="form-label">Meeting Time</label>
-                                <input type="time" class="form-control" name="meeting_time" required>
-                                <div class="invalid-feedback">Please select a meeting time</div>
-                            </div>
-
-                            <div class="col-md-6 mb-4">
-                                <label class="form-label">Location</label>
-                                <input type="text" class="form-control" name="location" required
-                                       placeholder="Enter meeting location">
-                                <div class="invalid-feedback">Please enter a location</div>
+                                <div class="invalid-feedback">Please select a document type</div>
                             </div>
 
                             <div class="col-12 mb-4">
-                                <label class="form-label">Members</label>
+                                <label class="form-label">Content</label>
+                                <textarea class="form-control" name="content" rows="6" required
+                                        placeholder="Enter document content">{{ document.content }}</textarea>
+                                <div class="invalid-feedback">Please enter document content</div>
+                            </div>
+
+                            <div class="col-12 mb-4">
+                                <label class="form-label">Tags</label>
+                                <input type="text" class="form-control" name="tags" 
+                                       value="{{ document.tags }}" placeholder="Enter tags (comma-separated)">
+                                <small class="text-muted">Separate tags with commas</small>
+                            </div>
+
+                            <div class="col-12 mb-4">
+                                <label class="form-label">Related Members</label>
                                 <div class="input-group mb-2">
                                     <input type="text" class="form-control" id="memberSearch" 
                                            placeholder="Search members...">
@@ -72,30 +57,40 @@
                                     <!-- Search results will appear here -->
                                 </div>
                                 <div id="selectedMembers" class="selected-members">
-                                    <!-- Selected members will appear here -->
+                                    {% for member in selected_members %}
+                                    <div class="member-tag">
+                                        {{ member.first_name }} {{ member.last_name }}
+                                        <input type="hidden" name="related_members" value="{{ member.id }}">
+                                        <span class="remove-member" data-id="{{ member.id }}">&times;</span>
+                                    </div>
+                                    {% endfor %}
                                 </div>
-                            </div>
-
-                            <div class="col-12 mb-4">
-                                <label class="form-label">Description</label>
-                                <textarea class="form-control" name="description" rows="3"
-                                        placeholder="Enter team description"></textarea>
                             </div>
 
                             <div class="col-md-6 mb-4">
                                 <label class="form-label">Status</label>
                                 <select class="form-select" name="status" required>
-                                    <option value="active">Active</option>
-                                    <option value="inactive">Inactive</option>
+                                    <option value="draft" {% if document.status == 'draft' %}selected{% endif %}>Draft</option>
+                                    <option value="pending" {% if document.status == 'pending' %}selected{% endif %}>Pending</option>
+                                    <option value="approved" {% if document.status == 'approved' %}selected{% endif %}>Approved</option>
+                                    <option value="rejected" {% if document.status == 'rejected' %}selected{% endif %}>Rejected</option>
                                 </select>
+                            </div>
+
+                            <div class="col-md-6 mb-4">
+                                <label class="form-label">File</label>
+                                <input type="file" class="form-control" name="document_file">
+                                {% if document.file_path %}
+                                <small class="text-muted">Current file: {{ document.file_path }}</small>
+                                {% endif %}
                             </div>
                         </div>
 
                         <div class="d-flex gap-2 mt-4">
                             <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-save me-2"></i>Create Cell Team
+                                <i class="fas fa-save me-2"></i>Save Changes
                             </button>
-                            <a href="{{ url_for('cell_teams') }}" class="btn btn-outline-secondary">
+                            <a href="{{ url_for('documents') }}" class="btn btn-outline-secondary">
                                 <i class="fas fa-arrow-left me-2"></i>Back
                             </a>
                         </div>
@@ -235,7 +230,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const memberSearch = document.getElementById('memberSearch');
     const searchResults = document.getElementById('searchResults');
     const selectedMembers = document.getElementById('selectedMembers');
-    const selectedMemberIds = new Set();
+    const selectedMemberIds = new Set(
+        Array.from(document.querySelectorAll('.member-tag input[name="related_members"]'))
+            .map(input => input.value)
+    );
 
     memberSearch.addEventListener('input', debounce(function() {
         const searchTerm = this.value.trim();
@@ -248,7 +246,7 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(response => response.json())
             .then(data => {
                 searchResults.innerHTML = data
-                    .filter(member => !selectedMemberIds.has(member.id))
+                    .filter(member => !selectedMemberIds.has(member.id.toString()))
                     .map(member => `
                         <div class="list-group-item list-group-item-action" 
                              data-id="${member.id}" 
@@ -278,7 +276,7 @@ document.addEventListener('DOMContentLoaded', function() {
             memberTag.className = 'member-tag';
             memberTag.innerHTML = `
                 ${memberName}
-                <input type="hidden" name="member_ids[]" value="${memberId}">
+                <input type="hidden" name="related_members" value="${memberId}">
                 <span class="remove-member" data-id="${memberId}">&times;</span>
             `;
             selectedMembers.appendChild(memberTag);

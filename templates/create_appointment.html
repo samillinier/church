@@ -110,14 +110,26 @@ document.addEventListener('DOMContentLoaded', function() {
                     data.forEach(member => {
                         const div = document.createElement('div');
                         div.className = 'list-group-item list-group-item-action';
-                        div.innerHTML = `<strong>${member.name}</strong><br><small>${member.email}</small>`;
+                        const fullName = `${member.first_name} ${member.last_name}`;
+                        div.innerHTML = `
+                            <strong>${fullName}</strong>
+                            <br>
+                            <small>${member.email}</small>
+                            ${member.phone ? `<br><small>${member.phone}</small>` : ''}
+                            <br>
+                            <small class="text-muted">Status: ${member.membership_status}</small>
+                        `;
                         div.addEventListener('click', () => {
-                            memberSearch.value = member.name;
+                            memberSearch.value = fullName;
                             memberIdInput.value = member.id;
                             searchResults.innerHTML = '';
                         });
                         searchResults.appendChild(div);
                     });
+                })
+                .catch(error => {
+                    console.error('Error searching members:', error);
+                    searchResults.innerHTML = '<div class="list-group-item text-danger">Error searching members. Please try again.</div>';
                 });
         }, 300);
     });
