@@ -2485,73 +2485,67 @@ def edit_staff(staff_id):
     
     return redirect(url_for('settings'))
 
-if __name__ == '__main__':
+def init_db():
     with app.app_context():
         try:
-            # Drop existing tables
-            db.drop_all()
-            print("Existing tables dropped successfully")
-            
             # Create new tables
             db.create_all()
-            print("New tables created successfully")
             
-            # Create initial users
-            admin = User(
-                username='admin',
-                email='admin@epaphra.com',
-                first_name='Admin',
-                last_name='User',
-                role='admin',
-                is_admin=True
-            )
-            admin.set_password('admin123')
-            
-            finance_admin = User(
-                username='finance_admin',
-                email='finance.admin@epaphra.com',
-                first_name='Finance',
-                last_name='Admin',
-                role='finance_admin'
-            )
-            finance_admin.set_password('finance123')
-            
-            finance_officer = User(
-                username='finance_officer',
-                email='finance.officer@epaphra.com',
-                first_name='Finance',
-                last_name='Officer',
-                role='finance_officer'
-            )
-            finance_officer.set_password('finance123')
-            
-            # Add users to database
-            db.session.add(admin)
-            db.session.add(finance_admin)
-            db.session.add(finance_officer)
-            db.session.commit()
-            
-            print("Created user: admin")
-            print("Created user: finance_admin")
-            print("Created user: finance_officer")
-            print("Initial users created successfully")
-            
-            # Create welcome notification for admin
-            welcome = Notification(
-                type='system',
-                title='Welcome to EPAPHRA',
-                message='Welcome to the church management system. Start by exploring the dashboard.',
-                date=datetime.now(),
-                user_id=admin.id,
-                is_read=False
-            )
-            db.session.add(welcome)
-            db.session.commit()
-            print("Welcome notification created")
-            print("Database initialized successfully!")
-            
+            # Check if admin user exists
+            admin = User.query.filter_by(username='admin').first()
+            if not admin:
+                # Create initial users
+                admin = User(
+                    username='admin',
+                    email='admin@epaphra.com',
+                    first_name='Admin',
+                    last_name='User',
+                    role='admin',
+                    is_admin=True
+                )
+                admin.set_password('admin123')
+                
+                finance_admin = User(
+                    username='finance_admin',
+                    email='finance.admin@epaphra.com',
+                    first_name='Finance',
+                    last_name='Admin',
+                    role='finance_admin'
+                )
+                finance_admin.set_password('finance123')
+                
+                finance_officer = User(
+                    username='finance_officer',
+                    email='finance.officer@epaphra.com',
+                    first_name='Finance',
+                    last_name='Officer',
+                    role='finance_officer'
+                )
+                finance_officer.set_password('finance123')
+                
+                # Add users to database
+                db.session.add(admin)
+                db.session.add(finance_admin)
+                db.session.add(finance_officer)
+                db.session.commit()
+                
+                # Create welcome notification for admin
+                welcome = Notification(
+                    type='system',
+                    title='Welcome to EPAPHRA',
+                    message='Welcome to the church management system. Start by exploring the dashboard.',
+                    date=datetime.now(),
+                    user_id=admin.id,
+                    is_read=False
+                )
+                db.session.add(welcome)
+                db.session.commit()
         except Exception as e:
             print("Error initializing database:", str(e))
             db.session.rollback()
-    
-    app.run(debug=True, port=3009) 
+
+# Initialize database on startup
+init_db()
+
+if __name__ == '__main__':
+    app.run() 
