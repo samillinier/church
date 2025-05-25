@@ -28,4 +28,7 @@ def init_db():
             db.session.rollback()
 
 # Initialize database
-init_db() 
+init_db()
+
+# This is important for Vercel
+app = app 
