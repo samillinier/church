@@ -11,11 +11,10 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
 import pytz
 import time
+from config import Config
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'your-secret-key-here'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///church.db'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config.from_object(Config)
 
 db = SQLAlchemy(app)
 login_manager = LoginManager(app)
