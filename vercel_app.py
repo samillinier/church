@@ -1,5 +1,12 @@
 from app import app, db, User, Notification
 from datetime import datetime
+import os
+
+# Configure PostgreSQL for production
+if os.environ.get('VERCEL_ENV') == 'production':
+    app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
+else:
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///church.db'
 
 def init_db():
     with app.app_context():
@@ -10,7 +17,7 @@ def init_db():
             # Check if admin user exists
             admin = User.query.filter_by(username='admin').first()
             if not admin:
-                # Create initial users
+                # Create initial admin user
                 admin = User(
                     username='admin',
                     email='admin@epaphra.com',

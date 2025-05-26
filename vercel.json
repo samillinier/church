@@ -15,6 +15,6 @@
     "env": {
         "FLASK_ENV": "production",
         "FLASK_APP": "vercel_app.py",
-        "SQLALCHEMY_DATABASE_URI": "sqlite:///church.db"
+        "VERCEL_ENV": "production"
     }
 } 
