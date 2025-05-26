@@ -8,6 +8,8 @@ import traceback
 from sqlalchemy import inspect, text
 from sqlalchemy.exc import OperationalError, ProgrammingError
 from werkzeug.security import generate_password_hash
+import time
+from flask_wtf.csrf import CSRFError
 
 def log_info(message):
     print(f"[INFO] {message}", file=sys.stdout)
@@ -21,7 +23,7 @@ def init_db():
     with app.app_context():
         try:
             # Log environment variables (excluding sensitive data)
-            env_vars = {k: '***' if 'PASSWORD' in k or 'URL' in k else v 
+            env_vars = {k: '***' if any(s in k.lower() for s in ['password', 'secret', 'key', 'token', 'url']) else v 
                        for k, v in os.environ.items()}
             log_info(f"Environment variables: {env_vars}")
 
@@ -30,18 +32,28 @@ def init_db():
                 log_error("SUPABASE_DB_URL environment variable is not set")
                 return False
 
-            # Check connection first
-            log_info("Testing database connection...")
-            try:
-                result = db.session.execute(text('SELECT 1'))
-                if result.scalar() != 1:
-                    raise Exception("Database connection test failed")
-                log_info("Database connection successful")
-            except Exception as e:
-                log_error(f"Database connection error: {str(e)}")
-                log_error(traceback.format_exc())
-                return False
-            
+            # Test database connection with retries
+            max_retries = 3
+            retry_count = 0
+            while retry_count < max_retries:
+                try:
+                    log_info(f"Testing database connection (attempt {retry_count + 1}/{max_retries})...")
+                    result = db.session.execute(text('SELECT 1'))
+                    if result.scalar() == 1:
+                        log_info("Database connection successful")
+                        break
+                    else:
+                        log_error("Database connection test failed")
+                        retry_count += 1
+                except Exception as e:
+                    log_error(f"Database connection error: {str(e)}")
+                    log_error(traceback.format_exc())
+                    retry_count += 1
+                    if retry_count < max_retries:
+                        time.sleep(1)  # Wait 1 second before retrying
+                    else:
+                        return False
+
             # Create tables if they don't exist
             log_info("Creating tables...")
             db.create_all()
@@ -112,10 +124,14 @@ def log_request_info():
 def internal_error(error):
     log_error(f"500 error: {str(error)}")
     log_error(traceback.format_exc())
-    db.session.rollback()
+    try:
+        db.session.rollback()
+    except:
+        pass
     return jsonify({
         'error': 'Internal Server Error',
-        'message': str(error)
+        'message': str(error),
+        'status_code': 500
     }), 500
 
 @app.errorhandler(404)
@@ -123,8 +139,18 @@ def not_found_error(error):
     log_error(f"404 error: {str(error)}")
     return jsonify({
         'error': 'Not Found',
-        'message': str(error)
+        'message': str(error),
+        'status_code': 404
     }), 404
+
+@app.errorhandler(CSRFError)
+def handle_csrf_error(e):
+    log_error(f"CSRF error: {str(e)}")
+    return jsonify({
+        'error': 'CSRF Error',
+        'message': str(e),
+        'status_code': 400
+    }), 400
 
 # For Vercel serverless deployment
 app = app

@@ -22,7 +22,12 @@
         "VERCEL_ENV": "production",
         "PYTHONPATH": ".",
         "PYTHON_VERSION": "3.9",
-        "MAX_CONTENT_LENGTH": "16777216"
+        "MAX_CONTENT_LENGTH": "16777216",
+        "SECRET_KEY": "@secret-key",
+        "WTF_CSRF_SECRET_KEY": "@wtf-csrf-secret-key",
+        "WTF_CSRF_ENABLED": "true",
+        "SESSION_COOKIE_SECURE": "true",
+        "SESSION_COOKIE_HTTPONLY": "true"
     },
     "functions": {
         "vercel_app.py": {
