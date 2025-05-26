@@ -5,7 +5,8 @@
             "src": "vercel_app.py",
             "use": "@vercel/python",
             "config": {
-                "maxLambdaSize": "15mb"
+                "maxLambdaSize": "15mb",
+                "runtime": "python3.9"
             }
         }
     ],
@@ -22,5 +23,11 @@
         "PYTHONPATH": ".",
         "PYTHON_VERSION": "3.9",
         "MAX_CONTENT_LENGTH": "16777216"
+    },
+    "functions": {
+        "vercel_app.py": {
+            "memory": 1024,
+            "maxDuration": 10
+        }
     }
 } 
