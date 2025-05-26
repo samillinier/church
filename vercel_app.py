@@ -27,11 +27,12 @@ def init_db():
                     username='admin',
                     email='admin@epaphra.com',
                     first_name='Admin',
-                    last_name='User',
-                    password='admin123'  # This will be hashed by the model
+                    last_name='User'
                 )
+                admin.set_password('admin123')  # Use the set_password method instead
                 db.session.add(admin)
                 db.session.commit()
+                print("Admin user created successfully!")
 
         except Exception as e:
             print(f"Error initializing database: {str(e)}")
