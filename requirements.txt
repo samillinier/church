@@ -14,3 +14,8 @@ MarkupSafe==2.1.5
 click==8.1.7
 blinker==1.7.0
 email-validator==2.1.0.post1
+requests==2.31.0
+urllib3==2.2.1
+certifi==2024.2.2
+charset-normalizer==3.3.2
+idna==3.6
