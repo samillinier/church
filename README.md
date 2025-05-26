@@ -1,107 +1,121 @@
 # EPAPHRA Church Management System
 
-A comprehensive church management system built with Flask and SQLAlchemy.
+A comprehensive church management system built with Flask.
 
 ## Features
 
 - Member Management
-  - Registration and profile management
-  - Photo upload support
-  - Member search and filtering
-  - Member analytics
-
 - Cell Team Management
-  - Create and manage cell teams
-  - Assign leaders and members
-  - Track meeting schedules
-
 - Document Management
-  - Store and organize church documents
-  - Document categorization
-  - Search functionality
-
 - Marriage Service Management
-  - Track marriage applications
-  - Manage counseling sessions
-  - Document requirements tracking
-
 - Teaching Program Management
-  - Manage programs and courses
-  - Track attendance
-  - Resource management
-
 - Financial Management
-  - Track income and expenses
-  - Generate financial reports
-  - Budget management
+- User Authentication and Authorization
+- Notifications System
 
-- Role-based Access Control
+## Local Development Setup
 
-- Notification System
-  - Birthday and anniversary reminders
-  - Event notifications
-  - Real-time updates
-
-## Requirements
-
-- Python 3.8+
-- Flask
-- SQLAlchemy
-- Other dependencies in requirements.txt
-
-## Installation
-
-1. Clone the repository:
-```bash
-git clone https://github.com/samillinier/church.git
-cd church
-```
-
-2. Create and activate virtual environment:
+1. Create a virtual environment:
 ```bash
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 ```
 
-3. Install dependencies:
+2. Install dependencies:
 ```bash
 pip install -r requirements.txt
 ```
 
-4. Initialize the database:
-```bash
-python app.py
+3. Set up environment variables:
+Create a `.env` file with:
+```
+FLASK_APP=app.py
+FLASK_ENV=development
+SECRET_KEY=your-secret-key-here
+DATABASE_URL=your-database-url  # Optional, will use SQLite by default
 ```
 
-5. Access the application:
-Open http://localhost:3002 in your web browser
+4. Initialize the database:
+```bash
+flask db upgrade
+```
+
+5. Run the application:
+```bash
+flask run
+```
+
+## Deployment to Vercel
+
+1. Install Vercel CLI:
+```bash
+npm i -g vercel
+```
+
+2. Login to Vercel:
+```bash
+vercel login
+```
+
+3. Deploy:
+```bash
+vercel
+```
+
+4. Set up environment variables in Vercel:
+- Go to your project settings in Vercel dashboard
+- Add the following environment variables:
+  - `DATABASE_URL`: Your PostgreSQL database URL
+  - `SECRET_KEY`: Your secret key
+  - `FLASK_ENV`: production
+
+5. Deploy to production:
+```bash
+vercel --prod
+```
 
 ## Default Users
 
-The system comes with three default users:
-- Admin: username: `admin`, password: `admin123`
-- Finance Admin: username: `finance_admin`, password: `finance123`
-- Finance Officer: username: `finance_officer`, password: `finance123`
+After initialization, the following users are created:
 
-## Directory Structure
+1. Admin User
+- Username: admin
+- Password: admin123
+
+2. Finance Admin
+- Username: finance_admin
+- Password: finance123
+
+3. Finance Officer
+- Username: finance_officer
+- Password: officer123
+
+## Database Configuration
+
+The application supports both SQLite (development) and PostgreSQL (production) databases:
+- Local development uses SQLite by default
+- Production deployment uses PostgreSQL (requires `DATABASE_URL` environment variable)
+
+## File Structure
 
 ```
-EPOSPEA/
 ├── app.py              # Main application file
-├── static/            # Static files (CSS, JS, uploads)
-├── templates/         # HTML templates
-├── uploads/          # User uploaded files
-└── church.db         # SQLite database
+├── vercel_app.py       # Vercel entry point
+├── config.py           # Configuration settings
+├── requirements.txt    # Python dependencies
+├── vercel.json         # Vercel configuration
+├── static/            # Static files
+└── templates/         # HTML templates
 ```
 
 ## Contributing
 
 1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+2. Create a feature branch
+3. Commit your changes
+4. Push to the branch
+5. Create a Pull Request
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details. 
+This project is licensed under the MIT License. 

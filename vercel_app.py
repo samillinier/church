@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 import os
 from config import Config
 import traceback
+from werkzeug.security import generate_password_hash
 
 # Use configuration from config.py
 app.config.from_object(Config)
@@ -10,13 +11,15 @@ app.config.from_object(Config)
 def init_db():
     with app.app_context():
         try:
-            # Create tables if they don't exist
+            print("Creating tables...")
             db.create_all()
+            print("Tables created successfully")
             
             # Check if admin user exists
             admin = User.query.filter_by(username='admin').first()
             if not admin:
-                # Create initial admin user with only valid fields
+                print("Creating admin user...")
+                # Create initial admin user
                 admin = User(
                     username='admin',
                     email='admin@epaphra.com',
@@ -26,12 +29,15 @@ def init_db():
                     is_admin=True,
                     created_at=datetime.now(timezone.utc)
                 )
+                # Set password using the set_password method
                 admin.set_password('admin123')
                 db.session.add(admin)
                 
                 try:
                     db.session.commit()
-                    print("Admin user created successfully")
+                    print("Admin user created successfully with:")
+                    print("Username: admin")
+                    print("Password: admin123")
                     
                     # Create welcome notification
                     welcome = Notification(
@@ -48,8 +54,11 @@ def init_db():
                     print("Welcome notification created")
                 except Exception as e:
                     print(f"Error during commit: {str(e)}")
+                    print(traceback.format_exc())
                     db.session.rollback()
                     raise
+            else:
+                print("Admin user already exists")
                 
         except Exception as e:
             print(f"Error initializing database: {str(e)}")
@@ -58,7 +67,9 @@ def init_db():
 
 # Initialize database
 try:
+    print("Starting database initialization...")
     init_db()
+    print("Database initialization completed")
 except Exception as e:
     print(f"Database initialization error: {str(e)}")
 

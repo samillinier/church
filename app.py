@@ -1,7 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from sqlalchemy import or_
 import os
 from werkzeug.utils import secure_filename
@@ -115,15 +115,18 @@ class User(UserMixin, db.Model):
     profile_picture = db.Column(db.String(200))
     role = db.Column(db.String(20), default='user')
     is_admin = db.Column(db.Boolean, default=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.now(timezone.utc))
     last_login = db.Column(db.DateTime)
     
     def set_password(self, password):
-        self.password_hash = generate_password_hash(password)
-        
+        if password:
+            self.password_hash = generate_password_hash(password)
+    
     def check_password(self, password):
+        if not self.password_hash or not password:
+            return False
         return check_password_hash(self.password_hash, password)
-        
+    
     def get_id(self):
         return str(self.id)
 
@@ -333,7 +336,7 @@ class Budget(db.Model):
 
 @login_manager.user_loader
 def load_user(user_id):
-    return db.session.get(User, int(user_id))  # Updated to use session.get instead of query.get
+    return db.session.get(User, int(user_id))  # Using newer SQLAlchemy syntax
 
 @app.route('/')
 def index():
@@ -344,31 +347,48 @@ def login():
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
+        
+        # Debug print
+        print(f"Login attempt - Username: {username}")
+        
         user = User.query.filter_by(username=username).first()
         
         if user and user.check_password(password):
             login_user(user)
-            user.last_login = datetime.now(pytz.UTC)
-            db.session.commit()
-            
-            # Create welcome notification for first login
-            if not Notification.query.filter_by(user_id=user.id, type='welcome').first():
-                notification = Notification(
-                    type='welcome',
-                    title='Welcome to EPAPHRA',
-                    message=f'Welcome {user.username} to your church management system!',
-                    date=datetime.now(pytz.UTC).date(),
-                    user_id=user.id,
-                    is_read=False
-                )
-                db.session.add(notification)
+            user.last_login = datetime.now(timezone.utc)
+            try:
                 db.session.commit()
-            
-            next_page = request.args.get('next')
-            if next_page:
-                return redirect(next_page)
-            return redirect(url_for('dashboard'))
-        flash('Invalid username or password', 'error')
+                print(f"Login successful for user: {username}")
+                
+                # Create welcome notification for first login
+                if not Notification.query.filter_by(user_id=user.id, type='welcome').first():
+                    notification = Notification(
+                        type='welcome',
+                        title='Welcome to EPAPHRA',
+                        message=f'Welcome {user.username} to your church management system!',
+                        date=datetime.now(timezone.utc),
+                        user_id=user.id,
+                        is_read=False,
+                        created_at=datetime.now(timezone.utc)
+                    )
+                    db.session.add(notification)
+                    db.session.commit()
+                
+                next_page = request.args.get('next')
+                if next_page:
+                    return redirect(next_page)
+                return redirect(url_for('dashboard'))
+            except Exception as e:
+                print(f"Error during login: {str(e)}")
+                db.session.rollback()
+                flash('An error occurred during login', 'error')
+        else:
+            # Debug print
+            if user:
+                print(f"Invalid password for user: {username}")
+            else:
+                print(f"User not found: {username}")
+            flash('Invalid username or password', 'error')
     return render_template('login.html')
 
 @app.route('/register', methods=['GET', 'POST'])
@@ -2493,58 +2513,91 @@ def init_db():
             # Check if admin user exists
             admin = User.query.filter_by(username='admin').first()
             if not admin:
-                # Create initial users
+                # Create initial admin user
                 admin = User(
                     username='admin',
                     email='admin@epaphra.com',
                     first_name='Admin',
                     last_name='User',
                     role='admin',
-                    is_admin=True
+                    is_admin=True,
+                    created_at=datetime.now(timezone.utc)
                 )
-                admin.set_password('admin123')
-                
-                finance_admin = User(
-                    username='finance_admin',
-                    email='finance.admin@epaphra.com',
-                    first_name='Finance',
-                    last_name='Admin',
-                    role='finance_admin'
-                )
-                finance_admin.set_password('finance123')
-                
-                finance_officer = User(
-                    username='finance_officer',
-                    email='finance.officer@epaphra.com',
-                    first_name='Finance',
-                    last_name='Officer',
-                    role='finance_officer'
-                )
-                finance_officer.set_password('finance123')
-                
-                # Add users to database
+                admin.set_password('admin123')  # Set password using the set_password method
                 db.session.add(admin)
-                db.session.add(finance_admin)
-                db.session.add(finance_officer)
-                db.session.commit()
                 
-                # Create welcome notification for admin
-                welcome = Notification(
-                    type='system',
-                    title='Welcome to EPAPHRA',
-                    message='Welcome to the church management system. Start by exploring the dashboard.',
-                    date=datetime.now(),
-                    user_id=admin.id,
-                    is_read=False
-                )
-                db.session.add(welcome)
-                db.session.commit()
+                try:
+                    db.session.commit()
+                    print("Created admin user successfully")
+                    
+                    # Create welcome notification
+                    welcome = Notification(
+                        type='system',
+                        title='Welcome to EPAPHRA',
+                        message='Welcome to the church management system.',
+                        date=datetime.now(timezone.utc),
+                        user_id=admin.id,
+                        is_read=False,
+                        created_at=datetime.now(timezone.utc)
+                    )
+                    db.session.add(welcome)
+                    db.session.commit()
+                    print("Welcome notification created")
+                except Exception as e:
+                    print(f"Error during commit: {str(e)}")
+                    db.session.rollback()
+                    raise
+                
         except Exception as e:
-            print("Error initializing database:", str(e))
+            print(f"Error initializing database: {str(e)}")
             db.session.rollback()
 
 # Initialize database on startup
-init_db()
+with app.app_context():
+    try:
+        # Drop all existing tables
+        print("Dropping existing tables...")
+        db.drop_all()
+        print("Existing tables dropped successfully")
+        
+        print("Creating new tables...")
+        db.create_all()
+        print("New tables created successfully")
+        
+        # Create admin user if it doesn't exist
+        admin = User.query.filter_by(username='admin').first()
+        if not admin:
+            admin = User(
+                username='admin',
+                email='admin@epaphra.com',
+                first_name='Admin',
+                last_name='User',
+                role='admin',
+                is_admin=True,
+                created_at=datetime.now(timezone.utc)
+            )
+            admin.set_password('admin123')
+            db.session.add(admin)
+            db.session.commit()
+            print("Created admin user successfully")
+            
+            # Create welcome notification
+            welcome = Notification(
+                type='system',
+                title='Welcome to EPAPHRA',
+                message='Welcome to the church management system.',
+                date=datetime.now(timezone.utc),
+                user_id=admin.id,
+                is_read=False,
+                created_at=datetime.now(timezone.utc)
+            )
+            db.session.add(welcome)
+            db.session.commit()
+            print("Welcome notification created")
+            print("Database initialized successfully!")
+    except Exception as e:
+        print(f"Error initializing database: {str(e)}")
+        db.session.rollback()
 
 if __name__ == '__main__':
     app.run() 

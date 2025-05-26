@@ -20,8 +20,9 @@ class Config:
         
         SQLALCHEMY_DATABASE_URI = DATABASE_URL
     else:
-        # Use SQLite for local development
-        SQLALCHEMY_DATABASE_URI = 'sqlite:///church.db'
+        # Use SQLite for local development with absolute path
+        basedir = os.path.abspath(os.path.dirname(__file__))
+        SQLALCHEMY_DATABASE_URI = f'sqlite:///{os.path.join(basedir, "church.db")}'
     
     # File upload settings - use /tmp for Vercel
     UPLOAD_FOLDER = '/tmp' if os.environ.get('VERCEL_ENV') == 'production' else 'static/uploads'
