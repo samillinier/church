@@ -4,7 +4,12 @@ import os
 
 # Configure PostgreSQL for production
 if os.environ.get('VERCEL_ENV') == 'production':
-    app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
+    db_url = os.environ.get('DATABASE_URL')
+    # ElephantSQL uses postgres:// but SQLAlchemy requires postgresql://
+    if db_url and db_url.startswith('postgres://'):
+        db_url = db_url.replace('postgres://', 'postgresql://', 1)
+    app.config['SQLALCHEMY_DATABASE_URI'] = db_url
+    app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'default-secret-key')
 else:
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///church.db'
 
@@ -23,31 +28,16 @@ def init_db():
                     email='admin@epaphra.com',
                     first_name='Admin',
                     last_name='User',
-                    role='admin',
-                    is_admin=True
+                    password='admin123'  # This will be hashed by the model
                 )
-                admin.set_password('admin123')
                 db.session.add(admin)
-                
-                # Create welcome notification
-                welcome = Notification(
-                    type='system',
-                    title='Welcome to EPAPHRA',
-                    message='Welcome to the church management system. Start by exploring the dashboard.',
-                    date=datetime.utcnow(),
-                    user_id=1,  # This will be the admin's ID
-                    is_read=False
-                )
-                
-                db.session.add(welcome)
                 db.session.commit()
-                print("Initial admin user and notification created successfully!")
 
         except Exception as e:
-            print("Error initializing database:", str(e))
-            db.session.rollback()
+            print(f"Error initializing database: {str(e)}")
+            raise e
 
-# Initialize database
+# Initialize the database
 init_db()
 
 # This is important for Vercel
