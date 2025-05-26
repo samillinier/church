@@ -5,9 +5,9 @@ import os
 # Configure PostgreSQL for production
 if os.environ.get('VERCEL_ENV') == 'production':
     db_url = os.environ.get('DATABASE_URL')
-    # ElephantSQL uses postgres:// but SQLAlchemy requires postgresql://
-    if db_url and db_url.startswith('postgres://'):
-        db_url = db_url.replace('postgres://', 'postgresql://', 1)
+    # Neon requires SSL
+    if db_url:
+        db_url = db_url + "?sslmode=require"
     app.config['SQLALCHEMY_DATABASE_URI'] = db_url
     app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'default-secret-key')
 else:
@@ -29,7 +29,7 @@ def init_db():
                     first_name='Admin',
                     last_name='User'
                 )
-                admin.set_password('admin123')  # Use the set_password method instead
+                admin.set_password('admin123')
                 db.session.add(admin)
                 db.session.commit()
                 print("Admin user created successfully!")
