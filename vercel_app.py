@@ -30,31 +30,8 @@ def init_db():
                 )
                 admin.set_password('admin123')
                 db.session.add(admin)
-                
-                # Create finance admin
-                finance_admin = User(
-                    username='finance_admin',
-                    email='finance.admin@epaphra.com',
-                    first_name='Finance',
-                    last_name='Admin',
-                    role='finance_admin'
-                )
-                finance_admin.set_password('finance123')
-                db.session.add(finance_admin)
-                
-                # Create finance officer
-                finance_officer = User(
-                    username='finance_officer',
-                    email='finance.officer@epaphra.com',
-                    first_name='Finance',
-                    last_name='Officer',
-                    role='finance_officer'
-                )
-                finance_officer.set_password('finance123')
-                db.session.add(finance_officer)
-                
                 db.session.commit()
-                print("Initial users created successfully!")
+                print("Admin user created successfully!")
 
                 # Create welcome notification
                 welcome = Notification(
@@ -71,6 +48,7 @@ def init_db():
 
         except Exception as e:
             print(f"Error initializing database: {str(e)}")
+            db.session.rollback()
             raise e
 
 # Initialize the database
