@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, render_template, flash, redirect, url_for
 from app import app, db, User, Notification
 from datetime import datetime, timezone
 import os
@@ -7,9 +7,18 @@ from config import Config
 import traceback
 from sqlalchemy import inspect, text
 from sqlalchemy.exc import OperationalError, ProgrammingError
-from werkzeug.security import generate_password_hash
+from werkzeug.security import generate_password_hash, check_password_hash
 import time
-from flask_wtf.csrf import CSRFError
+from flask_wtf.csrf import CSRFError, CSRFProtect
+from flask_login import LoginManager, login_user, logout_user, login_required, current_user
+
+# Initialize CSRF protection
+csrf = CSRFProtect(app)
+
+# Initialize login manager
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'login'
 
 def log_info(message):
     print(f"[INFO] {message}", file=sys.stdout)
@@ -146,6 +155,16 @@ def health_check():
             'error': str(e)
         }), 500
 
+# Add CSRF error handler
+@app.errorhandler(CSRFError)
+def handle_csrf_error(e):
+    log_error(f"CSRF error: {str(e)}")
+    return jsonify({
+        'error': 'CSRF Error',
+        'message': 'CSRF token validation failed. Please try again.',
+        'status_code': 400
+    }), 400
+
 # Add database connection error handler
 @app.errorhandler(OperationalError)
 def handle_db_error(error):
@@ -175,6 +194,72 @@ def handle_exception(error):
         'message': 'An unexpected error occurred. Please try again later.',
         'status_code': 500
     }), 500
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        try:
+            # Log request details
+            log_info("Login request received")
+            log_info(f"Form data: {request.form}")
+            
+            # Get form data
+            username = request.form.get('username')
+            password = request.form.get('password')
+            
+            if not username or not password:
+                log_error("Missing username or password")
+                flash('Please provide both username and password', 'error')
+                return render_template('login.html')
+            
+            log_info(f"Attempting login for user: {username}")
+            
+            # Test database connection
+            try:
+                db.session.execute(text('SELECT 1'))
+                db.session.commit()
+            except Exception as e:
+                log_error(f"Database connection error during login: {str(e)}")
+                flash('Database connection error. Please try again later.', 'error')
+                return render_template('login.html')
+            
+            user = User.query.filter_by(username=username).first()
+            
+            if user:
+                log_info(f"User found: {user.username}")
+                if user.check_password(password):
+                    login_user(user)
+                    user.last_login = datetime.now(timezone.utc)
+                    try:
+                        db.session.commit()
+                        log_info(f"Login successful for user: {username}")
+                        next_page = request.args.get('next')
+                        if next_page:
+                            return redirect(next_page)
+                        return redirect(url_for('dashboard'))
+                    except Exception as e:
+                        log_error(f"Database error during login: {str(e)}")
+                        log_error(traceback.format_exc())
+                        db.session.rollback()
+                        flash('An error occurred during login. Please try again.', 'error')
+                else:
+                    log_error(f"Invalid password for user: {username}")
+                    flash('Invalid username or password', 'error')
+            else:
+                log_error(f"User not found: {username}")
+                flash('Invalid username or password', 'error')
+        except Exception as e:
+            log_error(f"Unexpected error during login: {str(e)}")
+            log_error(traceback.format_exc())
+            flash('An unexpected error occurred. Please try again.', 'error')
+    
+    return render_template('login.html')
+
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    return redirect(url_for('index'))
 
 # For Vercel serverless deployment
 app = app

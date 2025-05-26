@@ -6,7 +6,8 @@
             "use": "@vercel/python",
             "config": {
                 "maxLambdaSize": "15mb",
-                "runtime": "python3.9"
+                "runtime": "python3.9",
+                "handler": "vercel_app.app"
             }
         }
     ],
@@ -27,7 +28,10 @@
         "WTF_CSRF_SECRET_KEY": "@wtf-csrf-secret-key",
         "WTF_CSRF_ENABLED": "true",
         "SESSION_COOKIE_SECURE": "true",
-        "SESSION_COOKIE_HTTPONLY": "true"
+        "SESSION_COOKIE_HTTPONLY": "true",
+        "SESSION_COOKIE_SAMESITE": "Lax",
+        "SQLALCHEMY_TRACK_MODIFICATIONS": "false",
+        "SQLALCHEMY_ECHO": "false"
     },
     "functions": {
         "vercel_app.py": {
