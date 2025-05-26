@@ -1,5 +1,6 @@
 from flask import Flask, jsonify, request, render_template, flash, redirect, url_for
-from app import app, db, User, Notification
+from flask_sqlalchemy import SQLAlchemy
+from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from datetime import datetime, timezone
 import os
 import sys
@@ -10,12 +11,14 @@ from sqlalchemy.exc import OperationalError, ProgrammingError
 from werkzeug.security import generate_password_hash, check_password_hash
 import time
 from flask_wtf.csrf import CSRFError, CSRFProtect
-from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 
-# Initialize CSRF protection
+# Initialize Flask app
+app = Flask(__name__)
+app.config.from_object(Config)
+
+# Initialize extensions
+db = SQLAlchemy(app)
 csrf = CSRFProtect(app)
-
-# Initialize login manager
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
@@ -27,6 +30,36 @@ def log_info(message):
 def log_error(message):
     print(f"[ERROR] {message}", file=sys.stderr)
     sys.stderr.flush()
+
+class User(UserMixin, db.Model):
+    __tablename__ = 'users'
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(80), unique=True, nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=False)
+    password_hash = db.Column(db.String(256))
+    first_name = db.Column(db.String(50))
+    last_name = db.Column(db.String(50))
+    phone = db.Column(db.String(20))
+    address = db.Column(db.Text)
+    profile_picture = db.Column(db.String(200))
+    role = db.Column(db.String(20), default='user')
+    is_admin = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.now(timezone.utc))
+    last_login = db.Column(db.DateTime)
+    _is_active = db.Column(db.Boolean, default=True)
+    
+    def set_password(self, password):
+        self.password_hash = generate_password_hash(password)
+    
+    def check_password(self, password):
+        return check_password_hash(self.password_hash, password)
+    
+    def get_id(self):
+        return str(self.id)
+    
+    @property
+    def is_active(self):
+        return self._is_active
 
 def init_db():
     with app.app_context():
@@ -111,9 +144,6 @@ def init_db():
             except:
                 pass
             return False
-
-# Configure the Flask app first
-app.config.from_object(Config)
 
 # Initialize the database
 log_info("Starting database initialization...")
@@ -260,6 +290,10 @@ def login():
 def logout():
     logout_user()
     return redirect(url_for('index'))
+
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
 
 # For Vercel serverless deployment
 app = app
