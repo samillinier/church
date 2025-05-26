@@ -1,12 +1,10 @@
 from app import app, db, User, Notification
 from datetime import datetime
 import os
+from config import Config
 
-# Always use PostgreSQL in production
-db_url = os.environ.get('DATABASE_URL', 'postgresql://neondb_owner:npg_XEz5n2xivYJW@ep-cool-river-a89e69pj-pooler.eastus2.azure.neon.tech/neondb?sslmode=require')
-app.config['SQLALCHEMY_DATABASE_URI'] = db_url
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'default-secret-key')
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+# Use configuration from config.py
+app.config.from_object(Config)
 
 def init_db():
     with app.app_context():
