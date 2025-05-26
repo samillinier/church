@@ -14,7 +14,12 @@
     "routes": [
         {
             "src": "/(.*)",
-            "dest": "vercel_app.py"
+            "dest": "/vercel_app.py",
+            "methods": ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+            "headers": {
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Headers": "Origin, X-Requested-With, Content-Type, Accept"
+            }
         }
     ],
     "env": {
