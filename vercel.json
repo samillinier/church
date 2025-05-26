@@ -17,9 +17,12 @@
         "FLASK_APP": "vercel_app.py",
         "VERCEL_ENV": "production",
         "PYTHONPATH": ".",
-        "DATABASE_URL": "postgresql://neondb_owner:npg_XEz5n2xivYJW@ep-cool-river-a89e69pj-pooler.eastus2.azure.neon.tech/neondb?sslmode=require",
+        "DATABASE_URL": "postgresql://neondb_owner:npg_XEz5n2xivYJW@ep-cool-river-a89e69pj-pooler.eastus2.azure.neon.tech/neondb",
         "SECRET_KEY": "your-secret-key-here",
         "SQLALCHEMY_TRACK_MODIFICATIONS": "false",
-        "UPLOAD_FOLDER": "/tmp"
+        "UPLOAD_FOLDER": "/tmp",
+        "PYTHON_VERSION": "3.9",
+        "PYTHONUNBUFFERED": "1",
+        "PYTHONUNBUFFERED": "1"
     }
 } 

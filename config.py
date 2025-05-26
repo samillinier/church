@@ -1,8 +1,32 @@
 import os
 
 class Config:
-    SECRET_KEY = os.environ.get('SECRET_KEY', 'your-secret-key-here')
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL', 'postgresql://neondb_owner:npg_XEz5n2xivYJW@ep-cool-river-a89e69pj-pooler.eastus2.azure.neon.tech/neondb?sslmode=require')
+    SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-    UPLOAD_FOLDER = os.environ.get('UPLOAD_FOLDER', '/tmp')
-    MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB max file size 
+    
+    # Get the database URL from environment variable
+    DATABASE_URL = os.environ.get('DATABASE_URL')
+    
+    if DATABASE_URL:
+        # Handle both postgres:// and postgresql:// style URLs
+        if DATABASE_URL.startswith('postgres://'):
+            DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
+        
+        # Add SSL configuration if not present
+        if '?' not in DATABASE_URL:
+            DATABASE_URL += '?sslmode=require'
+        elif 'sslmode=' not in DATABASE_URL:
+            DATABASE_URL += '&sslmode=require'
+        
+        SQLALCHEMY_DATABASE_URI = DATABASE_URL
+    else:
+        # Use SQLite for local development
+        SQLALCHEMY_DATABASE_URI = 'sqlite:///church.db'
+    
+    # File upload settings - use /tmp for Vercel
+    UPLOAD_FOLDER = '/tmp' if os.environ.get('VERCEL_ENV') == 'production' else 'static/uploads'
+    MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB max file size
+    
+    # Additional settings
+    SESSION_COOKIE_SECURE = os.environ.get('VERCEL_ENV') == 'production'
+    SESSION_COOKIE_HTTPONLY = True 
