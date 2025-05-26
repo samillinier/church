@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, jsonify
 from app import app, db, User, Notification
 from datetime import datetime, timezone
 import os
@@ -11,12 +11,22 @@ from werkzeug.security import generate_password_hash
 def init_db():
     with app.app_context():
         try:
+            # Check if database URL is set
+            if not os.environ.get('SUPABASE_DB_URL'):
+                print("ERROR: SUPABASE_DB_URL environment variable is not set")
+                return False
+
             # Check connection first
             print("Testing database connection...")
-            result = db.session.execute(text('SELECT 1'))
-            if result.scalar() != 1:
-                raise Exception("Database connection test failed")
-            print("Database connection successful")
+            try:
+                result = db.session.execute(text('SELECT 1'))
+                if result.scalar() != 1:
+                    raise Exception("Database connection test failed")
+                print("Database connection successful")
+            except Exception as e:
+                print(f"Database connection error: {str(e)}")
+                print(traceback.format_exc())
+                return False
             
             # Create tables if they don't exist
             print("Creating tables...")
@@ -30,7 +40,8 @@ def init_db():
             
             # Check if users table exists and has the correct schema
             if 'users' not in tables:
-                raise Exception("Users table was not created properly")
+                print("ERROR: Users table was not created properly")
+                return False
             
             # Create initial admin user if it doesn't exist
             print("Checking for admin user...")
@@ -60,8 +71,14 @@ def init_db():
             print(f"Error during database initialization: {str(e)}")
             print("Traceback:")
             print(traceback.format_exc())
-            db.session.rollback()
+            try:
+                db.session.rollback()
+            except:
+                pass
             return False
+
+# Configure the Flask app first
+app.config.from_object(Config)
 
 # Initialize the database
 print("Starting database initialization...")
@@ -70,10 +87,22 @@ if success:
     print("Database initialization completed successfully")
 else:
     print("Database initialization failed")
-    # Don't raise an exception here, let the application continue
 
-# Configure the Flask app
-app.config.from_object(Config)
+# Add error handlers
+@app.errorhandler(500)
+def internal_error(error):
+    db.session.rollback()
+    return jsonify({
+        'error': 'Internal Server Error',
+        'message': str(error)
+    }), 500
+
+@app.errorhandler(404)
+def not_found_error(error):
+    return jsonify({
+        'error': 'Not Found',
+        'message': str(error)
+    }), 404
 
 # For Vercel serverless deployment
 app = app
