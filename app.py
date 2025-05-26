@@ -12,6 +12,7 @@ from functools import wraps
 import pytz
 import time
 from config import Config
+import traceback
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -41,10 +42,10 @@ ROLE_PERMISSIONS = {
         'manage_appointments',
         'approve_transactions',
         'view_financial_reports',
-        'record_transactions',  # Added
-        'manage_budgets',       # Added
-        'view_budgets',        # Added
-        'manage_categories'     # Added
+        'record_transactions',
+        'manage_budgets',
+        'view_budgets',
+        'manage_categories'
     ],
     'finance_admin': [
         'manage_finances',
@@ -104,10 +105,11 @@ def requires_permission(permission):
     return decorator
 
 class User(UserMixin, db.Model):
+    __tablename__ = 'users'
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
-    password_hash = db.Column(db.String(128))
+    password_hash = db.Column(db.String(256))
     first_name = db.Column(db.String(50))
     last_name = db.Column(db.String(50))
     phone = db.Column(db.String(20))
@@ -117,18 +119,20 @@ class User(UserMixin, db.Model):
     is_admin = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.now(timezone.utc))
     last_login = db.Column(db.DateTime)
+    _is_active = db.Column(db.Boolean, default=True)
     
     def set_password(self, password):
-        if password:
-            self.password_hash = generate_password_hash(password)
+        self.password_hash = generate_password_hash(password)
     
     def check_password(self, password):
-        if not self.password_hash or not password:
-            return False
         return check_password_hash(self.password_hash, password)
     
     def get_id(self):
         return str(self.id)
+    
+    @property
+    def is_active(self):
+        return self._is_active
 
 class CellTeam(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -182,7 +186,7 @@ class Document(db.Model):
     document_type = db.Column(db.String(50), nullable=False)  # letter, report, announcement, etc.
     content = db.Column(db.Text, nullable=False)
     file_path = db.Column(db.String(500))  # For attached files
-    created_by = db.Column(db.Integer, db.ForeignKey('user.id'))
+    created_by = db.Column(db.Integer, db.ForeignKey('users.id'))  # Changed from 'user.id' to 'users.id'
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     status = db.Column(db.String(20), default='active')  # active, archived, deleted
@@ -243,13 +247,13 @@ class Notification(db.Model):
     date = db.Column(db.Date)
     is_read = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'))  # Changed from 'user.id' to 'users.id'
     reference_id = db.Column(db.Integer)  # ID of the related member or marriage
 
 class Appointment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     member_id = db.Column(db.Integer, db.ForeignKey('member.id'))
-    counselor_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    counselor_id = db.Column(db.Integer, db.ForeignKey('users.id'))  # Changed from 'user.id' to 'users.id'
     appointment_type = db.Column(db.String(50))  # Marriage, Personal, Family, etc.
     date = db.Column(db.Date, nullable=False)
     time = db.Column(db.String(10), nullable=False)  # Format: "HH:MM"
@@ -281,7 +285,7 @@ class FinanceTransaction(db.Model):
     reference_number = db.Column(db.String(100))  # check number, transfer reference, etc.
     description = db.Column(db.Text)
     transaction_date = db.Column(db.Date, nullable=False)
-    recorded_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    recorded_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)  # Changed from 'user.id' to 'users.id'
     recorded_at = db.Column(db.DateTime, default=datetime.utcnow)
     status = db.Column(db.String(20), default='completed')  # pending, completed, cancelled
     notes = db.Column(db.Text)
@@ -295,7 +299,7 @@ class FinanceTransaction(db.Model):
     # For expenses
     vendor_name = db.Column(db.String(200))
     receipt_number = db.Column(db.String(100))
-    approved_by = db.Column(db.Integer, db.ForeignKey('user.id'))
+    approved_by = db.Column(db.Integer, db.ForeignKey('users.id'))  # Changed from 'user.id' to 'users.id'
     approval_date = db.Column(db.DateTime)
     
     # Relationships
@@ -310,7 +314,7 @@ class FinancialReport(db.Model):
     total_income = db.Column(db.Float, default=0)
     total_expense = db.Column(db.Float, default=0)
     balance = db.Column(db.Float, default=0)
-    generated_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    generated_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)  # Changed from 'user.id' to 'users.id'
     generated_at = db.Column(db.DateTime, default=datetime.utcnow)
     notes = db.Column(db.Text)
     status = db.Column(db.String(20), default='draft')  # draft, final, archived
@@ -325,7 +329,7 @@ class Budget(db.Model):
     actual_amount = db.Column(db.Float, default=0)
     variance = db.Column(db.Float, default=0)
     notes = db.Column(db.Text)
-    created_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)  # Changed from 'user.id' to 'users.id'
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     status = db.Column(db.String(20), default='active')  # active, closed
@@ -394,105 +398,88 @@ def login():
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
-        # Handle photo upload
-        photo_path = None
-        if 'photo' in request.files:
-            photo = request.files['photo']
-            if photo.filename:
-                filename = secure_filename(photo.filename)
-                # Create uploads/member_photos directory if it doesn't exist
-                photos_dir = os.path.join(app.root_path, 'static', 'uploads', 'member_photos')
-                if not os.path.exists(photos_dir):
-                    os.makedirs(photos_dir)
-                # Save the photo
-                photo_path = os.path.join('uploads', 'member_photos', filename)
-                photo.save(os.path.join(app.root_path, 'static', photo_path))
-
-        # Get basic information
-        first_name = request.form.get('first_name')
-        last_name = request.form.get('last_name')
-        email = request.form.get('email')
-        phone = request.form.get('phone')
-        
-        # Get personal information
-        date_of_birth = datetime.strptime(request.form.get('date_of_birth'), '%Y-%m-%d').date() if request.form.get('date_of_birth') else None
-        gender = request.form.get('gender')
-        marital_status = request.form.get('marital_status')
-        occupation = request.form.get('occupation')
-        
-        # Get contact information
-        emergency_contact_name = request.form.get('emergency_contact_name')
-        emergency_contact_phone = request.form.get('emergency_contact_phone')
-        address = request.form.get('address')
-        city = request.form.get('city')
-        
-        # Get church-related information
-        membership_status = request.form.get('membership_status')
-        baptism_status = request.form.get('baptism_status') == 'yes'
-        baptism_date = datetime.strptime(request.form.get('baptism_date'), '%Y-%m-%d').date() if request.form.get('baptism_date') else None
-        previous_church = request.form.get('previous_church')
-        ministry = request.form.get('ministry')
-        ministry_start_date = datetime.strptime(request.form.get('ministry_start_date'), '%Y-%m-%d').date() if request.form.get('ministry_start_date') else None
-        spiritual_gifts = request.form.get('spiritual_gifts')
-        leadership_roles = request.form.get('leadership_roles')
-        family_members = request.form.get('family_members')
-        skills_talents = request.form.get('skills_talents')
-        prayer_requests = request.form.get('prayer_requests')
-        notes = request.form.get('notes')
-        
-        new_member = Member(
-            first_name=first_name,
-            last_name=last_name,
-            photo=photo_path,
-            date_of_birth=date_of_birth,
-            gender=gender,
-            marital_status=marital_status,
-            occupation=occupation,
-            email=email,
-            phone=phone,
-            emergency_contact_name=emergency_contact_name,
-            emergency_contact_phone=emergency_contact_phone,
-            address=address,
-            city=city,
-            membership_status=membership_status,
-            baptism_status=baptism_status,
-            baptism_date=baptism_date,
-            previous_church=previous_church,
-            ministry=ministry,
-            ministry_start_date=ministry_start_date,
-            spiritual_gifts=spiritual_gifts,
-            leadership_roles=leadership_roles,
-            family_members=family_members,
-            skills_talents=skills_talents,
-            prayer_requests=prayer_requests,
-            notes=notes
-        )
-        
         try:
-            db.session.add(new_member)
-            db.session.commit()
-
-            # Create notifications for all admin users
-            admin_users = User.query.filter_by(role='admin').all()
-            for admin in admin_users:
+            print("Starting registration process...")
+            username = request.form.get('username')
+            email = request.form.get('email')
+            password = request.form.get('password')
+            first_name = request.form.get('first_name')
+            last_name = request.form.get('last_name')
+            
+            print(f"Checking for existing username: {username}")
+            if User.query.filter_by(username=username).first():
+                print(f"Username {username} already exists")
+                flash('Username already exists', 'error')
+                return render_template('register.html')
+            
+            print(f"Checking for existing email: {email}")
+            if User.query.filter_by(email=email).first():
+                print(f"Email {email} already exists")
+                flash('Email already exists', 'error')
+                return render_template('register.html')
+            
+            print("Creating new user object...")
+            user = User(
+                username=username,
+                email=email,
+                first_name=first_name,
+                last_name=last_name,
+                role='user',
+                is_admin=False,
+                created_at=datetime.now(timezone.utc),
+                _is_active=True
+            )
+            
+            print("Setting password...")
+            user.set_password(password)
+            
+            print("Adding user to session...")
+            db.session.add(user)
+            
+            try:
+                print("Committing user to database...")
+                db.session.commit()
+                print(f"User {username} created successfully")
+                
+                print("Creating welcome notification...")
                 notification = Notification(
-                    type='new_member',
-                    title='New Member Registration',
-                    message=f'New member {first_name} {last_name} has registered.',
-                    date=datetime.utcnow().date(),
-                    user_id=admin.id,
-                    reference_id=new_member.id,
-                    is_read=False
+                    type='welcome',
+                    title='Welcome to EPAPHRA',
+                    message=f'Welcome {username} to your church management system!',
+                    date=datetime.now(timezone.utc),
+                    user_id=user.id,
+                    is_read=False,
+                    created_at=datetime.now(timezone.utc)
                 )
                 db.session.add(notification)
-            db.session.commit()
-
-            flash('Member registered successfully!')
-            return redirect(url_for('dashboard'))
+                
+                try:
+                    print("Committing notification to database...")
+                    db.session.commit()
+                    print("Welcome notification created successfully")
+                    flash('Registration successful! Please login.', 'success')
+                    return redirect(url_for('login'))
+                except Exception as e:
+                    print(f"Error creating notification: {str(e)}")
+                    print(f"Full error: {traceback.format_exc()}")
+                    db.session.rollback()
+                    # Continue with login even if notification fails
+                    flash('Registration successful! Please login.', 'success')
+                    return redirect(url_for('login'))
+                    
+            except Exception as e:
+                print(f"Error creating user: {str(e)}")
+                print(f"Full error: {traceback.format_exc()}")
+                db.session.rollback()
+                flash('Error during registration: ' + str(e), 'error')
+                return render_template('register.html')
+                
         except Exception as e:
-            db.session.rollback()
-            flash('Error registering member: ' + str(e))
-            
+            print(f"Unexpected error during registration: {str(e)}")
+            print(f"Full error: {traceback.format_exc()}")
+            flash('An unexpected error occurred during registration.', 'error')
+            return render_template('register.html')
+    
     return render_template('register.html')
 
 @app.route('/member/edit/<int:member_id>', methods=['GET', 'POST'])
@@ -1840,7 +1827,7 @@ class TeachingMaterial(db.Model):
     description = db.Column(db.Text)
     material_type = db.Column(db.String(50))  # lesson_plan, worksheet, activity, resource
     file_path = db.Column(db.String(500))
-    created_by = db.Column(db.Integer, db.ForeignKey('user.id'))
+    created_by = db.Column(db.Integer, db.ForeignKey('users.id'))  # Changed from 'user.id' to 'users.id'
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     status = db.Column(db.String(20), default='active')
     
@@ -2553,51 +2540,5 @@ def init_db():
             db.session.rollback()
 
 # Initialize database on startup
-with app.app_context():
-    try:
-        # Drop all existing tables
-        print("Dropping existing tables...")
-        db.drop_all()
-        print("Existing tables dropped successfully")
-        
-        print("Creating new tables...")
-        db.create_all()
-        print("New tables created successfully")
-        
-        # Create admin user if it doesn't exist
-        admin = User.query.filter_by(username='admin').first()
-        if not admin:
-            admin = User(
-                username='admin',
-                email='admin@epaphra.com',
-                first_name='Admin',
-                last_name='User',
-                role='admin',
-                is_admin=True,
-                created_at=datetime.now(timezone.utc)
-            )
-            admin.set_password('admin123')
-            db.session.add(admin)
-            db.session.commit()
-            print("Created admin user successfully")
-            
-            # Create welcome notification
-            welcome = Notification(
-                type='system',
-                title='Welcome to EPAPHRA',
-                message='Welcome to the church management system.',
-                date=datetime.now(timezone.utc),
-                user_id=admin.id,
-                is_read=False,
-                created_at=datetime.now(timezone.utc)
-            )
-            db.session.add(welcome)
-            db.session.commit()
-            print("Welcome notification created")
-            print("Database initialized successfully!")
-    except Exception as e:
-        print(f"Error initializing database: {str(e)}")
-        db.session.rollback()
-
 if __name__ == '__main__':
     app.run() 

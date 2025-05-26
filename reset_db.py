@@ -1,13 +1,53 @@
 from app import app, db
-import os
+from sqlalchemy import text
+import traceback
 
-# Delete the existing database file
-db_file = 'church.db'
-if os.path.exists(db_file):
-    os.remove(db_file)
-    print(f"Deleted existing {db_file}")
+def reset_db():
+    with app.app_context():
+        try:
+            # Drop all tables
+            print("Dropping all tables...")
+            tables = [
+                'user',
+                'notification',
+                'cell_team',
+                'member',
+                'document',
+                'marriage',
+                'appointment',
+                'finance_category',
+                'finance_transaction',
+                'financial_report',
+                'budget',
+                'teaching_program',
+                'teaching_teacher',
+                'teaching_student',
+                'teaching_material',
+                'teaching_event',
+                'cell_team_members'
+            ]
+            
+            for table in tables:
+                try:
+                    print(f"Dropping table: {table}")
+                    db.session.execute(text(f'DROP TABLE IF EXISTS "{table}" CASCADE'))
+                except Exception as e:
+                    print(f"Error dropping table {table}: {str(e)}")
+            
+            db.session.commit()
+            print("All tables dropped successfully")
+            
+            # Recreate tables
+            print("Recreating tables...")
+            db.create_all()
+            print("Tables recreated successfully")
+            
+            return True
+        except Exception as e:
+            print(f"Error resetting database: {str(e)}")
+            print(f"Full error traceback: {traceback.format_exc()}")
+            db.session.rollback()
+            return False
 
-# Create all tables
-with app.app_context():
-    db.create_all()
-    print("Created new database with all tables") 
+if __name__ == '__main__':
+    reset_db() 
