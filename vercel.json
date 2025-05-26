@@ -15,6 +15,7 @@
     "env": {
         "FLASK_ENV": "production",
         "FLASK_APP": "vercel_app.py",
-        "VERCEL_ENV": "production"
+        "VERCEL_ENV": "production",
+        "PYTHONPATH": "."
     }
 } 

@@ -28,7 +28,20 @@ def init_db():
                 )
                 admin.set_password('admin123')
                 db.session.add(admin)
+                
+                # Create welcome notification
+                welcome = Notification(
+                    type='system',
+                    title='Welcome to EPAPHRA',
+                    message='Welcome to the church management system. Start by exploring the dashboard.',
+                    date=datetime.utcnow(),
+                    user_id=1,  # This will be the admin's ID
+                    is_read=False
+                )
+                
+                db.session.add(welcome)
                 db.session.commit()
+                print("Initial admin user and notification created successfully!")
 
         except Exception as e:
             print("Error initializing database:", str(e))
