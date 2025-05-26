@@ -1,9 +1,12 @@
 import os
 from datetime import timedelta
+import secrets
 
 class Config:
     # Basic Flask config
-    SECRET_KEY = os.environ.get('SECRET_KEY') or 'your-secret-key'
+    SECRET_KEY = os.environ.get('SECRET_KEY') or secrets.token_hex(32)
+    WTF_CSRF_SECRET_KEY = os.environ.get('WTF_CSRF_SECRET_KEY') or secrets.token_hex(32)
+    WTF_CSRF_ENABLED = True
     
     # Get the database URL from environment variable
     DATABASE_URL = os.environ.get('SUPABASE_DB_URL')

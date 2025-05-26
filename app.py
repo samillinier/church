@@ -349,50 +349,59 @@ def index():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
-        
-        # Debug print
-        print(f"Login attempt - Username: {username}")
-        
-        user = User.query.filter_by(username=username).first()
-        
-        if user and user.check_password(password):
-            login_user(user)
-            user.last_login = datetime.now(timezone.utc)
-            try:
-                db.session.commit()
-                print(f"Login successful for user: {username}")
-                
-                # Create welcome notification for first login
-                if not Notification.query.filter_by(user_id=user.id, type='welcome').first():
-                    notification = Notification(
-                        type='welcome',
-                        title='Welcome to EPAPHRA',
-                        message=f'Welcome {user.username} to your church management system!',
-                        date=datetime.now(timezone.utc),
-                        user_id=user.id,
-                        is_read=False,
-                        created_at=datetime.now(timezone.utc)
-                    )
-                    db.session.add(notification)
-                    db.session.commit()
-                
-                next_page = request.args.get('next')
-                if next_page:
-                    return redirect(next_page)
-                return redirect(url_for('dashboard'))
-            except Exception as e:
-                print(f"Error during login: {str(e)}")
-                db.session.rollback()
-                flash('An error occurred during login', 'error')
-        else:
-            # Debug print
+        try:
+            username = request.form.get('username')
+            password = request.form.get('password')
+            
+            # Debug logging
+            print(f"[DEBUG] Login attempt - Username: {username}")
+            print(f"[DEBUG] Form data: {request.form}")
+            
+            user = User.query.filter_by(username=username).first()
+            
             if user:
-                print(f"Invalid password for user: {username}")
+                print(f"[DEBUG] User found: {user.username}")
+                if user.check_password(password):
+                    login_user(user)
+                    user.last_login = datetime.now(timezone.utc)
+                    try:
+                        db.session.commit()
+                        print(f"[DEBUG] Login successful for user: {username}")
+                        
+                        # Create welcome notification for first login
+                        if not Notification.query.filter_by(user_id=user.id, type='welcome').first():
+                            notification = Notification(
+                                type='welcome',
+                                title='Welcome to EPAPHRA',
+                                message=f'Welcome {user.username} to your church management system!',
+                                date=datetime.now(timezone.utc),
+                                user_id=user.id,
+                                is_read=False,
+                                created_at=datetime.now(timezone.utc)
+                            )
+                            db.session.add(notification)
+                            db.session.commit()
+                        
+                        next_page = request.args.get('next')
+                        if next_page:
+                            return redirect(next_page)
+                        return redirect(url_for('dashboard'))
+                    except Exception as e:
+                        print(f"[ERROR] Database error during login: {str(e)}")
+                        print(f"[ERROR] Full traceback: {traceback.format_exc()}")
+                        db.session.rollback()
+                        flash('An error occurred during login. Please try again.', 'error')
+                else:
+                    print(f"[DEBUG] Invalid password for user: {username}")
+                    flash('Invalid username or password', 'error')
             else:
-                print(f"User not found: {username}")
-            flash('Invalid username or password', 'error')
+                print(f"[DEBUG] User not found: {username}")
+                flash('Invalid username or password', 'error')
+        except Exception as e:
+            print(f"[ERROR] Unexpected error during login: {str(e)}")
+            print(f"[ERROR] Full traceback: {traceback.format_exc()}")
+            flash('An unexpected error occurred. Please try again.', 'error')
+    
     return render_template('login.html')
 
 @app.route('/register', methods=['GET', 'POST'])
