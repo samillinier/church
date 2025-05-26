@@ -16,6 +16,7 @@
         "FLASK_ENV": "production",
         "FLASK_APP": "vercel_app.py",
         "VERCEL_ENV": "production",
-        "PYTHONPATH": "."
+        "PYTHONPATH": ".",
+        "DATABASE_URL": "postgresql://neondb_owner:npg_XEz5n2xivYJW@ep-cool-river-a89e69pj-pooler.eastus2.azure.neon.tech/neondb?sslmode=require"
     }
 } 
