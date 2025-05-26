@@ -114,15 +114,57 @@ if success:
 else:
     log_error("Database initialization failed")
 
+# Add security headers to all responses
+@app.after_request
+def add_security_headers(response):
+    # Add security headers from config
+    for header, value in Config.SECURITY_HEADERS.items():
+        response.headers[header] = value
+    return response
+
+# Add request logging
 @app.before_request
 def log_request_info():
-    log_info(f"Request: {request.method} {request.url}")
-    log_info(f"Headers: {dict(request.headers)}")
+    # Don't log health check requests
+    if request.path != '/health':
+        log_info(f"Request: {request.method} {request.url}")
+        log_info(f"Headers: {dict(request.headers)}")
 
-# Add error handlers
-@app.errorhandler(500)
-def internal_error(error):
-    log_error(f"500 error: {str(error)}")
+# Add health check endpoint
+@app.route('/health')
+def health_check():
+    try:
+        # Test database connection
+        db.session.execute(text('SELECT 1'))
+        db.session.commit()
+        return jsonify({'status': 'healthy', 'database': 'connected'}), 200
+    except Exception as e:
+        log_error(f"Health check failed: {str(e)}")
+        return jsonify({
+            'status': 'unhealthy',
+            'database': 'disconnected',
+            'error': str(e)
+        }), 500
+
+# Add database connection error handler
+@app.errorhandler(OperationalError)
+def handle_db_error(error):
+    log_error(f"Database error: {str(error)}")
+    log_error(traceback.format_exc())
+    try:
+        db.session.rollback()
+    except:
+        pass
+    return jsonify({
+        'error': 'Database Error',
+        'message': 'A database error occurred. Please try again later.',
+        'status_code': 500
+    }), 500
+
+# Add general exception handler
+@app.errorhandler(Exception)
+def handle_exception(error):
+    log_error(f"Unhandled exception: {str(error)}")
     log_error(traceback.format_exc())
     try:
         db.session.rollback()
@@ -130,27 +172,9 @@ def internal_error(error):
         pass
     return jsonify({
         'error': 'Internal Server Error',
-        'message': str(error),
+        'message': 'An unexpected error occurred. Please try again later.',
         'status_code': 500
     }), 500
-
-@app.errorhandler(404)
-def not_found_error(error):
-    log_error(f"404 error: {str(error)}")
-    return jsonify({
-        'error': 'Not Found',
-        'message': str(error),
-        'status_code': 404
-    }), 404
-
-@app.errorhandler(CSRFError)
-def handle_csrf_error(e):
-    log_error(f"CSRF error: {str(e)}")
-    return jsonify({
-        'error': 'CSRF Error',
-        'message': str(e),
-        'status_code': 400
-    }), 400
 
 # For Vercel serverless deployment
 app = app
