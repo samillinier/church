@@ -2,13 +2,11 @@ from app import app, db, User, Notification
 from datetime import datetime
 import os
 
-# Configure PostgreSQL for production
-if os.environ.get('VERCEL_ENV') == 'production':
-    db_url = os.environ.get('DATABASE_URL', 'postgresql://neondb_owner:npg_XEz5n2xivYJW@ep-cool-river-a89e69pj-pooler.eastus2.azure.neon.tech/neondb?sslmode=require')
-    app.config['SQLALCHEMY_DATABASE_URI'] = db_url
-    app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'default-secret-key')
-else:
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///church.db'
+# Always use PostgreSQL in production
+db_url = os.environ.get('DATABASE_URL', 'postgresql://neondb_owner:npg_XEz5n2xivYJW@ep-cool-river-a89e69pj-pooler.eastus2.azure.neon.tech/neondb?sslmode=require')
+app.config['SQLALCHEMY_DATABASE_URI'] = db_url
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'default-secret-key')
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 def init_db():
     with app.app_context():
