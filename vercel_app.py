@@ -36,6 +36,12 @@ def log_error(message):
 def serve_static(filename):
     return send_from_directory(app.static_folder, filename)
 
+# Add root route
+@app.route('/')
+def index():
+    log_info("Accessing root route")
+    return redirect(url_for('login'))
+
 class User(UserMixin, db.Model):
     __tablename__ = 'users'
     id = db.Column(db.Integer, primary_key=True)
@@ -169,10 +175,8 @@ def add_security_headers(response):
 # Add request logging
 @app.before_request
 def log_request_info():
-    # Don't log health check requests
-    if request.path != '/health':
-        log_info(f"Request: {request.method} {request.url}")
-        log_info(f"Headers: {dict(request.headers)}")
+    log_info(f"Request: {request.method} {request.url}")
+    log_info(f"Headers: {dict(request.headers)}")
 
 # Add health check endpoint
 @app.route('/health')
