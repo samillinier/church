@@ -7,7 +7,12 @@
             "config": {
                 "maxLambdaSize": "15mb",
                 "runtime": "python3.9",
-                "handler": "vercel_app.app"
+                "handler": "vercel_app.app",
+                "includeFiles": [
+                    "templates/**",
+                    "static/**",
+                    "config.py"
+                ]
             }
         },
         {
@@ -22,7 +27,7 @@
         },
         {
             "src": "/(.*)",
-            "dest": "/vercel_app.py",
+            "dest": "vercel_app.py",
             "methods": ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
             "headers": {
                 "Access-Control-Allow-Origin": "*",
