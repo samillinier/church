@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, request, render_template, flash, redirect, url_for
+from flask import Flask, jsonify, request, render_template, flash, redirect, url_for, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from datetime import datetime, timezone
@@ -13,7 +13,7 @@ import time
 from flask_wtf.csrf import CSRFError, CSRFProtect
 
 # Initialize Flask app
-app = Flask(__name__)
+app = Flask(__name__, static_folder='static')
 app.config.from_object(Config)
 
 # Initialize extensions
@@ -30,6 +30,11 @@ def log_info(message):
 def log_error(message):
     print(f"[ERROR] {message}", file=sys.stderr)
     sys.stderr.flush()
+
+# Add static file handling
+@app.route('/static/<path:filename>')
+def serve_static(filename):
+    return send_from_directory(app.static_folder, filename)
 
 class User(UserMixin, db.Model):
     __tablename__ = 'users'
