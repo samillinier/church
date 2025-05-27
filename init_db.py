@@ -6,7 +6,7 @@ def init_database():
         print("Creating database tables...")
         db.create_all()
         print("Tables created successfully!")
-
+        
         # Check if admin user exists
         admin = User.query.filter_by(username='admin').first()
         if not admin:
@@ -24,7 +24,7 @@ def init_database():
             db.session.add(admin)
             
             try:
-                db.session.commit()
+            db.session.commit()
                 print("Admin user created successfully!")
             except Exception as e:
                 print(f"Error creating admin user: {str(e)}")

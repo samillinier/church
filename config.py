@@ -9,47 +9,21 @@ class Config:
     WTF_CSRF_SECRET_KEY = os.environ.get('WTF_CSRF_SECRET_KEY') or secrets.token_hex(32)
     WTF_CSRF_ENABLED = True
     
-    # Get the database URL from environment variable
-    DATABASE_URL = os.environ.get('SUPABASE_DB_URL')
-    if not DATABASE_URL:
-        raise ValueError("No SUPABASE_DB_URL set for Flask application")
-    
-    # Parse the database URL to ensure it's properly formatted
-    parsed_url = urllib.parse.urlparse(DATABASE_URL)
-    
-    # Handle both postgres:// and postgresql:// style URLs
-    if parsed_url.scheme == 'postgres':
-        DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
-    
-    # Add SSL configuration if not present
-    query_params = urllib.parse.parse_qs(parsed_url.query)
-    if 'sslmode' not in query_params:
-        if '?' not in DATABASE_URL:
-            DATABASE_URL += '?sslmode=require'
-        else:
-            DATABASE_URL += '&sslmode=require'
+    # Get the database URL from environment variable or use SQLite
+    DATABASE_URL = os.environ.get('SUPABASE_DB_URL', 'sqlite:///church.db')
     
     # Set the SQLAlchemy database URI
     SQLALCHEMY_DATABASE_URI = DATABASE_URL
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ECHO = os.environ.get('FLASK_ENV') == 'development'  # Only log SQL in development
     
-    # Configure SQLAlchemy connection pool with SSL
+    # Configure SQLAlchemy connection pool
     SQLALCHEMY_ENGINE_OPTIONS = {
         'pool_pre_ping': True,  # Enable automatic reconnection
         'pool_recycle': 300,    # Recycle connections every 5 minutes
         'pool_timeout': 30,     # Connection timeout of 30 seconds
         'pool_size': 10,        # Reduced pool size for serverless
-        'max_overflow': 5,      # Allow 5 connections above pool size
-        'connect_args': {
-            'connect_timeout': 10,
-            'sslmode': 'require',
-            'keepalives': 1,
-            'keepalives_idle': 30,
-            'keepalives_interval': 10,
-            'keepalives_count': 5,
-            'application_name': 'epospea'  # Identify the application in database logs
-        }
+        'max_overflow': 5       # Allow 5 connections above pool size
     }
     
     # Session config

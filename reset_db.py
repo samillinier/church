@@ -36,10 +36,10 @@ def reset_db():
             
             db.session.commit()
             print("All tables dropped successfully")
-            
+
             # Recreate tables
             print("Recreating tables...")
-            db.create_all()
+    db.create_all()
             print("Tables recreated successfully")
             
             return True

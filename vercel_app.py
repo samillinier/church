@@ -106,7 +106,7 @@ def init_db():
                         time.sleep(1)  # Wait 1 second before retrying
                     else:
                         return False
-
+            
             # Create tables if they don't exist
             log_info("Creating tables...")
             db.create_all()
@@ -134,7 +134,7 @@ def init_db():
                     last_name='User',
                     role='admin',
                     is_admin=True,
-                    created_at=datetime.now(timezone.utc),
+                        created_at=datetime.now(timezone.utc),
                     _is_active=True
                 )
                 admin.set_password('admin123')
