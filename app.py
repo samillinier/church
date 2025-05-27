@@ -7,28 +7,63 @@ import os
 import sys
 import traceback
 from sqlalchemy import inspect, text
-from sqlalchemy.exc import OperationalError, ProgrammingError
+from sqlalchemy.exc import SQLAlchemyError, OperationalError, ProgrammingError
 from werkzeug.security import generate_password_hash, check_password_hash
 from config import Config
+import logging.config
 
 # Initialize Flask app
 app = Flask(__name__)
 app.config.from_object(Config)
 
+# Configure logging
+logging.config.dictConfig(app.config['LOGGING_CONFIG'])
+logger = logging.getLogger(__name__)
+
 # Initialize extensions
-db = SQLAlchemy(app)
-csrf = CSRFProtect(app)
-login_manager = LoginManager()
-login_manager.init_app(app)
-login_manager.login_view = 'login'
+try:
+    db = SQLAlchemy(app)
+    csrf = CSRFProtect(app)
+    login_manager = LoginManager()
+    login_manager.init_app(app)
+    login_manager.login_view = 'login'
+    logger.info("Successfully initialized Flask extensions")
+except Exception as e:
+    logger.error(f"Failed to initialize Flask extensions: {str(e)}")
+    logger.error(traceback.format_exc())
+    raise
 
 def log_info(message):
-    print(f"[INFO] {message}", file=sys.stdout)
-    sys.stdout.flush()
+    logger.info(message)
 
-def log_error(message):
-    print(f"[ERROR] {message}", file=sys.stderr)
-    sys.stderr.flush()
+def log_error(message, exc_info=False):
+    logger.error(message, exc_info=exc_info)
+
+@app.before_request
+def log_request_info():
+    logger.info(f"Request: {request.method} {request.url}")
+    logger.info(f"Headers: {dict(request.headers)}")
+
+@app.after_request
+def log_response_info(response):
+    logger.info(f"Response status: {response.status}")
+    return response
+
+@app.errorhandler(500)
+def internal_error(error):
+    logger.error(f"Internal Server Error: {str(error)}", exc_info=True)
+    return render_template('500.html'), 500
+
+@app.errorhandler(404)
+def not_found_error(error):
+    logger.error(f"Page not found: {request.url}")
+    return render_template('404.html'), 404
+
+@app.errorhandler(SQLAlchemyError)
+def handle_db_error(error):
+    logger.error(f"Database error: {str(error)}", exc_info=True)
+    db.session.rollback()
+    return render_template('500.html'), 500
 
 class User(UserMixin, db.Model):
     __tablename__ = 'users'
@@ -152,81 +187,91 @@ def dashboard():
 
 @app.route('/healthz')
 def healthz():
-    return jsonify({
-        'status': 'ok',
-        'message': 'Application is running'
-    })
-
-@app.route('/initialize-database/<token>')
-def initialize_database(token):
     try:
-        log_info("Database initialization endpoint called")
-        log_info(f"Checking token: {token[:6]}...")
-        
-        init_token = os.environ.get('INIT_DB_TOKEN')
-        if not init_token:
-            log_error("INIT_DB_TOKEN environment variable is not set")
-            return jsonify({
-                'status': 'error',
-                'message': 'INIT_DB_TOKEN not configured'
-            }), 500
-            
-        if token != init_token:
-            log_error("Invalid token for database initialization")
-            return jsonify({
-                'status': 'error',
-                'message': 'Invalid token'
-            }), 403
+        # Test database connection
+        log_info("Testing database connection...")
+        db.session.execute(text('SELECT 1'))
+        db.session.commit()
+        log_info("Database connection successful")
 
+        # Check tables
+        log_info("Checking database tables...")
+        inspector = inspect(db.engine)
+        tables = inspector.get_table_names()
+        log_info(f"Found tables: {tables}")
+
+        # Check users table specifically
+        if 'users' not in tables:
+            log_error("Users table not found")
+            return jsonify({
+                'status': 'unhealthy',
+                'database': 'connected',
+                'error': 'Users table not found',
+                'tables': tables
+            }), 500
+
+        # Test users table query
+        log_info("Testing users table query...")
+        result = db.session.execute(text("SELECT COUNT(*) FROM users")).scalar()
+        log_info(f"Found {result} users")
+
+        return jsonify({
+            'status': 'healthy',
+            'database': 'connected',
+            'tables': tables,
+            'user_count': result
+        })
+    except Exception as e:
+        log_error(f"Health check failed: {str(e)}")
+        log_error(f"Traceback: {traceback.format_exc()}")
+        return jsonify({
+            'status': 'unhealthy',
+            'database': 'disconnected',
+            'error': str(e)
+        }), 500
+
+@app.route('/init-db')
+def init_db():
+    try:
         log_info("Starting database initialization...")
         
-        db_url = app.config['SQLALCHEMY_DATABASE_URI']
-        masked_url = db_url.split('@')[1] if '@' in db_url else db_url
-        log_info(f"Using database URL: ...@{masked_url}")
-        
-        log_info("Dropping all existing tables...")
-        db.drop_all()
-        
+        # Create tables
         log_info("Creating database tables...")
         db.create_all()
         
+        # Verify tables were created
         inspector = inspect(db.engine)
         tables = inspector.get_table_names()
         log_info(f"Created tables: {tables}")
         
         if 'users' not in tables:
-            log_error("Users table was not created!")
+            log_error("Failed to create users table")
             return jsonify({
                 'status': 'error',
                 'message': 'Failed to create users table'
             }), 500
         
-        log_info("Creating admin user...")
-        admin = User(
-            username='admin',
-            email='admin@epaphra.com',
-            first_name='Admin',
-            last_name='User',
-            role='admin',
-            is_admin=True,
-            created_at=datetime.now(timezone.utc),
-            _is_active=True
-        )
-        admin.set_password('admin123')
+        # Check if admin user exists
+        admin = User.query.filter_by(username='admin').first()
+        if not admin:
+            log_info("Creating admin user...")
+            admin = User(
+                username='admin',
+                email='admin@epaphra.com',
+                first_name='Admin',
+                last_name='User',
+                role='admin',
+                is_admin=True,
+                created_at=datetime.now(timezone.utc),
+                _is_active=True
+            )
+            admin.set_password('admin123')
+            db.session.add(admin)
+            db.session.commit()
+            log_info("Admin user created successfully")
+        else:
+            log_info("Admin user already exists")
         
-        db.session.add(admin)
-        db.session.commit()
-        log_info("Admin user created successfully!")
-        
-        admin_check = User.query.filter_by(username='admin').first()
-        if not admin_check:
-            log_error("Admin user verification failed!")
-            return jsonify({
-                'status': 'error',
-                'message': 'Failed to verify admin user creation'
-            }), 500
-            
-        log_info("Database initialization completed successfully!")
         return jsonify({
             'status': 'success',
             'message': 'Database initialized successfully',
@@ -235,11 +280,7 @@ def initialize_database(token):
         
     except Exception as e:
         log_error(f"Database initialization failed: {str(e)}")
-        log_error(traceback.format_exc())
-        try:
-            db.session.rollback()
-        except:
-            pass
+        log_error(f"Traceback: {traceback.format_exc()}")
         return jsonify({
             'status': 'error',
             'message': str(e)
