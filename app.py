@@ -11,6 +11,7 @@ from sqlalchemy.exc import SQLAlchemyError, OperationalError, ProgrammingError
 from werkzeug.security import generate_password_hash, check_password_hash
 from config import Config
 import logging.config
+import json
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -52,6 +53,13 @@ def log_response_info(response):
 @app.errorhandler(500)
 def internal_error(error):
     logger.error(f"Internal Server Error: {str(error)}", exc_info=True)
+    if app.debug:
+        # In debug mode, show the actual error
+        return f"""
+        <h1>Internal Server Error</h1>
+        <h2>Error: {str(error)}</h2>
+        <pre>{traceback.format_exc()}</pre>
+        """, 500
     return render_template('500.html'), 500
 
 @app.errorhandler(404)
@@ -63,6 +71,13 @@ def not_found_error(error):
 def handle_db_error(error):
     logger.error(f"Database error: {str(error)}", exc_info=True)
     db.session.rollback()
+    if app.debug:
+        # In debug mode, show the actual error
+        return f"""
+        <h1>Database Error</h1>
+        <h2>Error: {str(error)}</h2>
+        <pre>{traceback.format_exc()}</pre>
+        """, 500
     return render_template('500.html'), 500
 
 class User(UserMixin, db.Model):
@@ -289,6 +304,26 @@ def init_db():
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
+
+@app.route('/debug-info')
+def debug_info():
+    """Endpoint to show debug information"""
+    if not app.debug:
+        return "Debug mode is disabled", 403
+        
+    info = {
+        'Database URL': app.config['SQLALCHEMY_DATABASE_URI'],
+        'Debug Mode': app.debug,
+        'Testing Mode': app.testing,
+        'Secret Key Set': bool(app.config['SECRET_KEY']),
+        'Environment': os.environ.get('FLASK_ENV', 'not set'),
+        'Database Options': app.config['SQLALCHEMY_ENGINE_OPTIONS'],
+    }
+    
+    return f"""
+    <h1>Debug Information</h1>
+    <pre>{json.dumps(info, indent=2)}</pre>
+    """
 
 if __name__ == '__main__':
     app.run(debug=True) 
