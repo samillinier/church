@@ -81,8 +81,8 @@ def init_db():
             log_info(f"Environment variables: {env_vars}")
 
             # Check if database URL is set
-            if not os.environ.get('SUPABASE_DB_URL'):
-                log_error("SUPABASE_DB_URL environment variable is not set")
+            if not os.environ.get('DATABASE_URL'):
+                log_error("DATABASE_URL environment variable is not set")
                 return False
 
             # Test database connection with retries
@@ -304,8 +304,110 @@ def logout():
 def load_user(user_id):
     return User.query.get(int(user_id))
 
-# For Vercel serverless deployment
-app = app
+# Add database initialization endpoint
+@app.route('/initialize-database/<token>')
+def initialize_database(token):
+    try:
+        log_info("Database initialization endpoint called")
+        log_info(f"Checking token: {token[:6]}...")  # Only log first 6 chars for security
+        
+        # Check if the token matches the secret key
+        init_token = os.environ.get('INIT_DB_TOKEN')
+        if not init_token:
+            log_error("INIT_DB_TOKEN environment variable is not set")
+            return jsonify({
+                'status': 'error',
+                'message': 'INIT_DB_TOKEN not configured'
+            }), 500
+            
+        if token != init_token:
+            log_error("Invalid token for database initialization")
+            return jsonify({
+                'status': 'error',
+                'message': 'Invalid token'
+            }), 403
+
+        log_info("Starting database initialization from endpoint...")
+        
+        # Log database URL (without sensitive info)
+        db_url = app.config['SQLALCHEMY_DATABASE_URI']
+        masked_url = db_url.split('@')[1] if '@' in db_url else db_url
+        log_info(f"Using database URL: ...@{masked_url}")
+        
+        # Drop all tables
+        log_info("Dropping all existing tables...")
+        db.drop_all()
+        log_info("All tables dropped successfully")
+
+        # Create all tables
+        log_info("Creating database tables...")
+        db.create_all()
+        
+        # Verify tables were created
+        inspector = inspect(db.engine)
+        tables = inspector.get_table_names()
+        log_info(f"Created tables: {tables}")
+        
+        if 'users' not in tables:
+            log_error("Users table was not created!")
+            return jsonify({
+                'status': 'error',
+                'message': 'Failed to create users table'
+            }), 500
+        
+        # Create admin user
+        log_info("Creating admin user...")
+        admin = User(
+            username='admin',
+            email='admin@epaphra.com',
+            first_name='Admin',
+            last_name='User',
+            role='admin',
+            is_admin=True,
+            created_at=datetime.now(timezone.utc),
+            _is_active=True
+        )
+        admin.set_password('admin123')
+        
+        # Add and commit admin user
+        db.session.add(admin)
+        db.session.commit()
+        log_info("Admin user created successfully!")
+        
+        # Verify admin user was created
+        admin_check = User.query.filter_by(username='admin').first()
+        if not admin_check:
+            log_error("Admin user verification failed!")
+            return jsonify({
+                'status': 'error',
+                'message': 'Failed to verify admin user creation'
+            }), 500
+            
+        log_info("Database initialization completed successfully!")
+        return jsonify({
+            'status': 'success',
+            'message': 'Database initialized successfully',
+            'tables': tables
+        })
+        
+    except Exception as e:
+        log_error(f"Database initialization failed: {str(e)}")
+        log_error(traceback.format_exc())
+        try:
+            db.session.rollback()
+        except:
+            pass
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+@app.route('/healthz')
+def healthz():
+    return jsonify({
+        'status': 'ok',
+        'message': 'Application is running'
+    })
 
 # For local development
 if __name__ == '__main__':

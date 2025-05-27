@@ -1,8 +1,10 @@
 from app import app, db, User
 from datetime import datetime, timezone
+import os
 
 def init_database():
     with app.app_context():
+        print(f"Using database URL: {app.config['SQLALCHEMY_DATABASE_URI']}")
         print("Creating database tables...")
         db.create_all()
         print("Tables created successfully!")
@@ -24,12 +26,14 @@ def init_database():
             db.session.add(admin)
             
             try:
-            db.session.commit()
+                db.session.commit()
                 print("Admin user created successfully!")
             except Exception as e:
                 print(f"Error creating admin user: {str(e)}")
                 db.session.rollback()
                 raise
+        else:
+            print("Admin user already exists")
 
 if __name__ == "__main__":
-    init_database() 
+    init_database()

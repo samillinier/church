@@ -7,9 +7,9 @@ def test_database_connection():
     app = Flask(__name__)
     
     # Get database URL from environment variable
-    DATABASE_URL = os.environ.get('SUPABASE_DB_URL')
+    DATABASE_URL = os.environ.get('DATABASE_URL')
     if not DATABASE_URL:
-        print("❌ Error: SUPABASE_DB_URL environment variable is not set")
+        print("❌ Error: DATABASE_URL environment variable is not set")
         return False
     
     # Handle both postgres:// and postgresql:// style URLs

@@ -10,7 +10,18 @@ class Config:
     WTF_CSRF_ENABLED = True
     
     # Get the database URL from environment variable or use SQLite
-    DATABASE_URL = os.environ.get('SUPABASE_DB_URL', 'sqlite:///church.db')
+    DATABASE_URL = os.environ.get('DATABASE_URL', 'sqlite:///church.db')
+    
+    # Convert postgres:// to postgresql:// for SQLAlchemy
+    if DATABASE_URL.startswith('postgres://'):
+        DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
+    
+    # Add SSL configuration if not present and using PostgreSQL
+    if DATABASE_URL.startswith('postgresql://'):
+        if '?' not in DATABASE_URL:
+            DATABASE_URL += '?sslmode=require'
+        elif 'sslmode=' not in DATABASE_URL:
+            DATABASE_URL += '&sslmode=require'
     
     # Set the SQLAlchemy database URI
     SQLALCHEMY_DATABASE_URI = DATABASE_URL
