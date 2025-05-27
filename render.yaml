@@ -8,6 +8,6 @@ services:
       - key: PYTHON_VERSION
         value: 3.11
       - key: FLASK_APP
-        value: vercel_app.py
+        value: app.py
       - key: FLASK_ENV
         value: production 

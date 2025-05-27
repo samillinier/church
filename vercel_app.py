@@ -1,15 +1,13 @@
-from flask import Flask, jsonify, request, render_template, flash, redirect, url_for, send_from_directory
+from flask import jsonify, request, render_template, flash, redirect, url_for, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
-from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
+from flask_login import UserMixin, login_user, logout_user, login_required, current_user
 from datetime import datetime, timezone
 import os
 import sys
-from config import Config
 import traceback
 from sqlalchemy import inspect, text
 from sqlalchemy.exc import OperationalError, ProgrammingError
 from werkzeug.security import generate_password_hash, check_password_hash
-import time
 from flask_wtf.csrf import CSRFError, CSRFProtect
 
 # Initialize Flask app
@@ -35,12 +33,6 @@ def log_error(message):
 @app.route('/static/<path:filename>')
 def serve_static(filename):
     return send_from_directory(app.static_folder, filename)
-
-# Add root route
-@app.route('/')
-def index():
-    log_info("Accessing root route")
-    return redirect(url_for('login'))
 
 class User(UserMixin, db.Model):
     __tablename__ = 'users'
@@ -72,9 +64,116 @@ class User(UserMixin, db.Model):
     def is_active(self):
         return self._is_active
 
-def init_db():
-    with app.app_context():
+def initialize_routes(app, db):
+    @app.route('/healthz')
+    def healthz():
+        return jsonify({
+            'status': 'ok',
+            'message': 'Application is running'
+        })
+
+    @app.route('/initialize-database/<token>')
+    def initialize_database(token):
         try:
+            log_info("Database initialization endpoint called")
+            log_info(f"Checking token: {token[:6]}...")  # Only log first 6 chars for security
+            
+            # Check if the token matches the secret key
+            init_token = os.environ.get('INIT_DB_TOKEN')
+            if not init_token:
+                log_error("INIT_DB_TOKEN environment variable is not set")
+                return jsonify({
+                    'status': 'error',
+                    'message': 'INIT_DB_TOKEN not configured'
+                }), 500
+                
+            if token != init_token:
+                log_error("Invalid token for database initialization")
+                return jsonify({
+                    'status': 'error',
+                    'message': 'Invalid token'
+                }), 403
+
+            log_info("Starting database initialization from endpoint...")
+            
+            # Log database URL (without sensitive info)
+            db_url = app.config['SQLALCHEMY_DATABASE_URI']
+            masked_url = db_url.split('@')[1] if '@' in db_url else db_url
+            log_info(f"Using database URL: ...@{masked_url}")
+            
+            # Drop all tables
+            log_info("Dropping all existing tables...")
+            db.drop_all()
+            log_info("All tables dropped successfully")
+
+            # Create all tables
+            log_info("Creating database tables...")
+            db.create_all()
+            
+            # Verify tables were created
+            inspector = inspect(db.engine)
+            tables = inspector.get_table_names()
+            log_info(f"Created tables: {tables}")
+            
+            if 'users' not in tables:
+                log_error("Users table was not created!")
+                return jsonify({
+                    'status': 'error',
+                    'message': 'Failed to create users table'
+                }), 500
+            
+            # Create admin user
+            log_info("Creating admin user...")
+            admin = User(
+                username='admin',
+                email='admin@epaphra.com',
+                first_name='Admin',
+                last_name='User',
+                role='admin',
+                is_admin=True,
+                created_at=datetime.now(timezone.utc),
+                _is_active=True
+            )
+            admin.set_password('admin123')
+            
+            # Add and commit admin user
+            db.session.add(admin)
+            db.session.commit()
+            log_info("Admin user created successfully!")
+            
+            # Verify admin user was created
+            admin_check = User.query.filter_by(username='admin').first()
+            if not admin_check:
+                log_error("Admin user verification failed!")
+                return jsonify({
+                    'status': 'error',
+                    'message': 'Failed to verify admin user creation'
+                }), 500
+                
+            log_info("Database initialization completed successfully!")
+            return jsonify({
+                'status': 'success',
+                'message': 'Database initialized successfully',
+                'tables': tables
+            })
+            
+        except Exception as e:
+            log_error(f"Database initialization failed: {str(e)}")
+            log_error(traceback.format_exc())
+            try:
+                db.session.rollback()
+            except:
+                pass
+            return jsonify({
+                'status': 'error',
+                'message': str(e)
+            }), 500
+
+    @app.route('/login', methods=['GET', 'POST'])
+    def login():
+        if request.method == 'POST':
+            try:
+                # Log request details
             # Log environment variables (excluding sensitive data)
             env_vars = {k: '***' if any(s in k.lower() for s in ['password', 'secret', 'key', 'token', 'url']) else v 
                        for k, v in os.environ.items()}
@@ -253,16 +352,46 @@ def login():
             
             log_info(f"Attempting login for user: {username}")
             
+            # Log database configuration
+            db_url = app.config['SQLALCHEMY_DATABASE_URI']
+            masked_url = db_url.split('@')[1] if '@' in db_url else db_url
+            log_info(f"Using database URL: ...@{masked_url}")
+            
             # Test database connection
             try:
-                db.session.execute(text('SELECT 1'))
-                db.session.commit()
+                log_info("Testing database connection...")
+                result = db.session.execute(text('SELECT 1'))
+                if result.scalar() == 1:
+                    log_info("Database connection successful")
+                else:
+                    log_error("Database connection test failed")
+                    flash('Database connection error. Please try again later.', 'error')
+                    return render_template('login.html')
             except Exception as e:
                 log_error(f"Database connection error during login: {str(e)}")
+                log_error(traceback.format_exc())
                 flash('Database connection error. Please try again later.', 'error')
                 return render_template('login.html')
             
-            user = User.query.filter_by(username=username).first()
+            # Check if users table exists
+            inspector = inspect(db.engine)
+            tables = inspector.get_table_names()
+            log_info(f"Available tables: {tables}")
+            
+            if 'users' not in tables:
+                log_error("Users table does not exist")
+                flash('Database setup required. Please contact administrator.', 'error')
+                return render_template('login.html')
+            
+            # Try to find user
+            try:
+                user = User.query.filter_by(username=username).first()
+                log_info(f"User query result: {user is not None}")
+            except Exception as e:
+                log_error(f"Error querying user: {str(e)}")
+                log_error(traceback.format_exc())
+                flash('An error occurred while looking up user. Please try again.', 'error')
+                return render_template('login.html')
             
             if user:
                 log_info(f"User found: {user.username}")
