@@ -10,6 +10,7 @@ from sqlalchemy import inspect, text
 from sqlalchemy.exc import OperationalError, ProgrammingError
 from werkzeug.security import generate_password_hash, check_password_hash
 from config import Config
+from forms import LoginForm
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -67,18 +68,18 @@ def index():
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    if request.method == 'POST':
+    form = LoginForm()
+    if form.validate_on_submit():
         try:
             log_info("Login request received")
-            log_info(f"Form data: {request.form}")
             
-            username = request.form.get('username')
-            password = request.form.get('password')
+            username = form.username.data
+            password = form.password.data
             
             if not username or not password:
                 log_error("Missing username or password")
                 flash('Please provide both username and password', 'error')
-                return render_template('login.html')
+                return render_template('login.html', form=form)
             
             log_info(f"Attempting login for user: {username}")
             
@@ -90,12 +91,12 @@ def login():
                 else:
                     log_error("Database connection test failed")
                     flash('Database connection error. Please try again later.', 'error')
-                    return render_template('login.html')
+                    return render_template('login.html', form=form)
             except Exception as e:
                 log_error(f"Database connection error during login: {str(e)}")
                 log_error(traceback.format_exc())
                 flash('Database connection error. Please try again later.', 'error')
-                return render_template('login.html')
+                return render_template('login.html', form=form)
             
             inspector = inspect(db.engine)
             tables = inspector.get_table_names()
@@ -104,7 +105,7 @@ def login():
             if 'users' not in tables:
                 log_error("Users table does not exist")
                 flash('Database setup required. Please contact administrator.', 'error')
-                return render_template('login.html')
+                return render_template('login.html', form=form)
             
             try:
                 user = User.query.filter_by(username=username).first()
@@ -113,7 +114,7 @@ def login():
                 log_error(f"Error querying user: {str(e)}")
                 log_error(traceback.format_exc())
                 flash('An error occurred while looking up user. Please try again.', 'error')
-                return render_template('login.html')
+                return render_template('login.html', form=form)
             
             if user and user.check_password(password):
                 login_user(user)
@@ -137,7 +138,7 @@ def login():
             log_error(traceback.format_exc())
             flash('An unexpected error occurred. Please try again.', 'error')
     
-    return render_template('login.html')
+    return render_template('login.html', form=form)
 
 @app.route('/logout')
 @login_required
@@ -249,5 +250,65 @@ def initialize_database(token):
 def load_user(user_id):
     return User.query.get(int(user_id))
 
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if request.method == 'POST':
+        try:
+            # Log request details
+            log_info("Registration request received")
+            log_info(f"Form data: {request.form}")
+            
+            # Get form data
+            username = request.form.get('username')
+            email = request.form.get('email')
+            password = request.form.get('password')
+            first_name = request.form.get('first_name')
+            last_name = request.form.get('last_name')
+            
+            if not all([username, email, password, first_name, last_name]):
+                flash('Please fill in all required fields', 'error')
+                return render_template('register.html')
+            
+            # Check if username or email already exists
+            existing_user = User.query.filter(
+                (User.username == username) | (User.email == email)
+            ).first()
+            
+            if existing_user:
+                if existing_user.username == username:
+                    flash('Username already taken', 'error')
+                else:
+                    flash('Email already registered', 'error')
+                return render_template('register.html')
+            
+            # Create new user
+            new_user = User(
+                username=username,
+                email=email,
+                first_name=first_name,
+                last_name=last_name,
+                created_at=datetime.now(timezone.utc),
+                _is_active=True
+            )
+            new_user.set_password(password)
+            
+            try:
+                db.session.add(new_user)
+                db.session.commit()
+                flash('Registration successful! Please login.', 'success')
+                return redirect(url_for('login'))
+            except Exception as e:
+                log_error(f"Error creating user: {str(e)}")
+                db.session.rollback()
+                flash('An error occurred during registration. Please try again.', 'error')
+                return render_template('register.html')
+                
+        except Exception as e:
+            log_error(f"Unexpected error during registration: {str(e)}")
+            flash('An unexpected error occurred. Please try again.', 'error')
+            return render_template('register.html')
+    
+    return render_template('register.html')
+
 if __name__ == '__main__':
-    app.run(debug=True) 
+    app.run(debug=True, port=5001) 
